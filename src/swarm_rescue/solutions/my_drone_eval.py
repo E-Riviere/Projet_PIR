@@ -1,5 +1,5 @@
-from solutions.my_drone_random import MyDroneRandom
+from solutions.vortex_solution import MyDroneVortex
 
 
-class MyDroneEval(MyDroneRandom):
+class MyDroneEval(MyDroneVortex):
     pass
