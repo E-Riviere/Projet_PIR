@@ -93,7 +93,7 @@ class Launcher:
         # Set this value to True to generate stat data and pdf report
         stat_saving_enabled = False
         # Set this value to True to generate a video of the mission
-        self.video_capture_enabled = False
+        self.video_capture_enabled = True
 
         self.result_path = None
         if stat_saving_enabled or self.video_capture_enabled:

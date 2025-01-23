@@ -24,21 +24,29 @@ class My4Map(MapAbstract):
         self._size_area = (1000, 700)
 
         #POSITIONS OF THE DRONES
-        self._number_drones = 10
+        # A fine tuner en fonction du nombre de drone et de la map
+        self._number_drones = 12
         # They are positioned in a square whose side size depends on the total number of drones.
-        start_area_drones = (-350, 50.0)
-        nb_per_side = math.ceil(math.sqrt(float(self._number_drones)))
-        dist_inter_drone = 45.0
+        start_pose_drone = (-300, 0.0)
+        nb_per_row = math.floor(math.sqrt(float(self._number_drones)))
+        nb_per_column = math.ceil(math.sqrt(float(self._number_drones)))
+        self.stock_shape = (nb_per_row, nb_per_column)
+        dist_inter_drone = 40.0
         # print("nb_per_side", nb_per_side)
         # print("dist_inter_drone", dist_inter_drone)
-        sx = start_area_drones[0] - (nb_per_side - 1) * 0.5 * dist_inter_drone
-        sy = start_area_drones[1] - (nb_per_side - 1) * 0.5 * dist_inter_drone
+        # sx = start_area_drones[0] - (nb_per_side - 1) * 0.5 * dist_inter_drone
+        # sy = start_area_drones[1] - (nb_per_side - 1) * 0.5 * dist_inter_drone
         # print("sx", sx, "sy", sy)
 
         self._drones_pos = []
         for i in range(self._number_drones):
-            x = sx + (float(i) % nb_per_side) * dist_inter_drone
-            y = sy + math.floor(float(i) / nb_per_side) * dist_inter_drone
+            x = start_pose_drone[0] - (float(i) // nb_per_row) * dist_inter_drone
+            if i % nb_per_row == 0:
+                y = start_pose_drone[1]
+            elif i % nb_per_row == 1:
+                y = start_pose_drone[1] + 2*dist_inter_drone
+            elif i % nb_per_row == 2:
+                y = start_pose_drone[1] - 2*dist_inter_drone
             angle = 0.0
             self._drones_pos.append(((x, y), angle))
 
@@ -80,3 +88,6 @@ class My4Map(MapAbstract):
                                    drone_collision_drone)
 
         return playground
+    
+    def get_stock_shape(self):
+        return (self.stock_shape)

@@ -20,7 +20,7 @@ class DroneGPS(InternalSensor, ABC):
 
         self._pg_size = None
 
-        self._noise = True
+        self._noise = False
         model_param = 0.98
         self.std_dev_noise = 5
         self._noise_model = AutoregressiveModelNoise(model_param=model_param,
