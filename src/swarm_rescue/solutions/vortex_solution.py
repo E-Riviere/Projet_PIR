@@ -32,7 +32,6 @@ class MyDroneVortex(BrainModule, DroneAbstract):
                  identifier: Optional[int] = None,
                  misc_data: Optional[MiscData] = None,
                  **kwargs):
-
         DroneAbstract.__init__(self,
                                identifier= identifier,
                                misc_data= misc_data,
@@ -42,13 +41,18 @@ class MyDroneVortex(BrainModule, DroneAbstract):
 
         self.identifier = identifier
         self.network = {self.signature : self}
- 
+        self.raw_data = {
+        "lidar data" : None,
+        "lidar ray angles" : None,
+        "semantic data" : None
+        }
+        
 
-        self.sensors_analyzer = SensorsAnalyzer(signature= "sensors analyzer",identifier= self.identifier)
-        self.actuators_computer = ActuatorsComputer(signature= "actuator computeur", identifier= self.identifier)
-        self.role = RoleState(signature= "role", identifier= self.identifier)
-        self.behavior = Behaviour(signature="behaviour", identifier= self.identifier)
-        self.situation = Situation(signature= "situation", identifier= self.identifier)
+        self.sensors_analyzer = SensorsAnalyzer(signature= "Sensors analyzer",identifier= self.identifier)
+        self.actuators_computer = ActuatorsComputer(signature= "Actuator computeur", identifier= self.identifier)
+        self.role = RoleState(signature= "Role", identifier= self.identifier)
+        self.behavior = Behaviour(signature="Behaviour", identifier= self.identifier)
+        self.situation = Situation(signature= "Situation", identifier= self.identifier)
 
         self.create_module_network(self.sensors_analyzer,
                                    self.actuators_computer,
@@ -57,6 +61,33 @@ class MyDroneVortex(BrainModule, DroneAbstract):
                                    self.situation)
 
         # print(self.identifier, self.network, self.subscribers)
+        
+        self.recieved_requests = {
+        "Need behavior" : None,
+        "Need situation" : None,
+        "Need sensors analyze" : None,
+        "Need raw data" : None,
+        "Need role" : None,
+        "Need visual com" : None,
+        "Need gps pos" : None,
+        "Need drone detection" : None
+        }
+
+        self.recieved_msgs = {
+        "analyzed data" : None,
+        "drone situation" : None,
+        "drone behavior" : None,
+        "actuators values" : None,
+        "take root done": None,
+        "change role" : None,
+        "set first drone role" : None,
+        "first drone role set" : None,
+        "change situation to root" : None,
+        "situation changed to root" : None,
+        "send branch reconfiguration" : None,
+        "send more agent required" : None,
+        "send come closer" : None,
+        }
 
 
     def create_module_network(self, *args):
@@ -64,27 +95,80 @@ class MyDroneVortex(BrainModule, DroneAbstract):
             self.network[module.signature] = module
             self.create_link_with(module)
 
-    def read_request(self):
-        last_request = list(self.recieved_requests.items())[-1]
-        if last_request == (self.actuators_computer.signature, "Need behaviour"):
-            self.request(self.signature, self.behavior.signature, "behaviour")
-        elif last_request == (self.behavior.signature, "Need situation"):
-            self.request(self.signature, self.situation.signature, "situation")
-        elif last_request == (self.situation.signature, "Need sensors analyze"):
-            self.request(self.signature, self.sensors_analyzer.signature, "sensors analyze")
-        elif last_request == (self.sensors_analyzer.signature, "Need raw data"):
-            self.send(self.signature, self.sensors_analyzer.signature, ["sensor raw data", self.lidar_data(), self.semantic_data()])
+    def read_request(self, request):
+        if request == "Need behavior":
+            self.request(self.signature, self.behavior.signature, "Need behavior")
+
+        elif request == "Need situation":
+            self.request(self.signature, self.situation.signature, "Need situation")
+
+        elif request == "Need sensors analyze":
+            self.request(self.signature, self.sensors_analyzer.signature, "Need sensors analyze")
+
+        elif request == "Need raw data":
+            self.raw_data["lidar data"] = self.lidar_data()
+            self.raw_data["lidar ray angles"] = self.lidar_rays_angles()
+            self.raw_data["semantic data"] = self.semantic_data()
+
+            self.send(self.signature, self.sensors_analyzer.signature, "sensors raw data", self.raw_data)
+
+        elif request ==  "Need gps pos":
+            self.send(self.signature, self.actuators_computer.signature, "gps pos", self.gps_values())
+        
+        elif request == "Need role":
+            self.send(self.signature, self.behavior.signature, "drone role", self.role.actual_role)
+        
+        elif request == "Need visual com":
+            self.send(self.signature, self.behavior.signature, "recieved visual com", self.communication_data())
+
+        elif request == "Need drone detection":
+            self.send(self.signature, self.actuators_computer.signature, "drone detection", self.sensors_analyzer.analyzed_data["visual connectivity"])
+
+
     
-    def read_msg(self):
-        last_msg = list(self.recieved_msgs.items())[-1]
-        if last_msg[1][0] == "analyzed data":
-            self.send(self.signature, self.situation.signature, last_msg)
-        elif last_msg[1][0] == "drone situation":
-            self.send(self.signature, self.behavior.signature, last_msg)
-        elif last_msg[1][0] == "drone behaviours":
-            self.send(self.signature, self.actuators_computer, last_msg)
-        elif last_msg[1][0] == "actuators values":
+    def read_msg(self, title):
+        if len(self.recieved_msgs[title]) > 1:
+            dico = self.recieved_msgs[title][1]
+        if title == "analyzed data":
+            self.send(self.signature, self.situation.signature, title, dico)
+
+        elif title == "drone situation":
+            self.send(self.signature, self.behavior.signature, title, dico)
+
+        elif title == "drone behavior":
+            # if self.identifier == 1:
+            #     print(self.behavior.behavior_set_name)
+            self.send(self.signature, self.actuators_computer.signature, title, dico)
+
+        elif title == "actuators values":
             pass
+        
+        elif title == "take root done":
+            self.send(self.signature, self.behavior.signature, title)
+        
+        elif title == "stationary":
+            self.send(self.signature, self.behavior.signature, title)
+        
+        elif title == "set first drone role":
+            self.send(self.signature, self.role.signature, title, dico)
+
+        elif title == "set drone role":
+            self.send(self.signature, self.role.signature, title)
+
+        elif title == "drone role set":
+            self.send(self.signature, self.behavior.signature, title)
+        
+        elif title == "change situation to root":
+            self.send(self.signature, self.situation.signature, title)
+        
+        elif title == "situation changed to root":
+            self.send(self.signature, self.behavior.signature, title)
+        
+        elif title == "leave root done":
+            self.send(self.signature, self.behavior.signature, title)
+
+
+
 
     def lidar_data(self):
         lidar_data = self.lidar_values()
@@ -93,13 +177,39 @@ class MyDroneVortex(BrainModule, DroneAbstract):
         semantic_data = self.semantic_values()
         return semantic_data
     def communication_data(self):
-        communication_data = self.communicator.received_messages()
+        communication_data = self.communicator.received_messages
         return communication_data
     
      
 
     def define_message_for_all(self):
-        pass
+            visual_com = {"id": self.identifier, "visual indications" : [], "visual msgs": []}
+
+            if self.situation.drone_situation["Stock"]:
+                pass
+            if self.situation.drone_situation["Root"]:
+                visual_com["visual indications"].append("white")
+            if self.situation.drone_situation["Intersection"]:
+                visual_com["visual indications"].append("yellow")
+            if self.situation.drone_situation["Dead-end"]:
+                visual_com["visual indications"].append("black")
+            if self.role.actual_role["Leader"]:
+                visual_com["visual indications"].append("blue")
+
+            if self.recieved_msgs["send branch reconfiguration"]:
+                visual_com["visual msgs"].append("red")
+            if self.recieved_msgs["send more agent required"]:
+                visual_com["visual msgs"].append(["green", self.identifier + 1])
+                self.recieved_msgs["send more agent required"] = None
+                self.send(self.signature, self.behavior.signature,"com send")
+            if self.recieved_msgs["send come closer"]:
+                visual_com["visual msgs"].append("purple")
+
+            # if self.identifier == 1:
+            #     print(visual_com)
+            return (visual_com)
+        
+
 
 
     def control(self):

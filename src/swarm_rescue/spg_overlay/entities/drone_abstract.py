@@ -122,10 +122,11 @@ class DroneAbstract(Agent):
                  display_lidar_graph=False,
                  **kwargs
                  ):
-        super().__init__(interactive=True, lateral=True, radius=10, **kwargs)
 
+        super().__init__(interactive=True, lateral=True, radius=10, **kwargs)
         if identifier is None:
             identifier = id(self)
+        
 
         base = DroneBase()
         self.add(base)
@@ -148,6 +149,7 @@ class DroneAbstract(Agent):
         self.base.add(DroneOdometer())
 
         self.identifier = identifier
+
         self._display_lidar_graph = display_lidar_graph
 
         if self._display_lidar_graph:

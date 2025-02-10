@@ -1,7 +1,11 @@
+import math
+import numpy
+
 from statemachine import State
 from statemachine import StateMachine
 
 from spg_overlay.utils.vortex_utils.vortex_state_machines.brain_module import BrainModule
+from spg_overlay.utils.vortex_utils.PID import PID
 
 class ActuatorsComputer(BrainModule):
     # Stationary = State(initial=True)
@@ -33,76 +37,195 @@ class ActuatorsComputer(BrainModule):
         "rotation" : 0.0
         }
 
-        self.behaviour_memory = None
+        self.recieved_requests = {
+        "Need actuators values" : None
+        }
 
-    def read_request(self):
-        last_request = list(self.recieved_requests.items())[-1]
-        if last_request[1] == "Need actuators values":
-            if self.behaviour_memory == None:
-                self.request(self.signature, "module manager", "Need behavior")
+        self.recieved_msgs = {
+        "gps pos" : None,
+        "drone detection" : None,
+        "drone behavior" : None
+        }
+
+        self.leave_root_pid = PID(Kp=0.1, Ki=0.02, Kd=0.02, output_limits=(-1,1))
+        self.leave_root_pid.setpoint = 40
+        self.follow_leader = PID(Kp=0.1, Ki=0.02, Kd=0.02, output_limits=(-1,1))
+        self.follow_leader.setpoint = 100
+
+
+    def read_request(self, request):
+        if request == "Need actuators values":
+            self.request(self.signature, "Module manager", "Need behavior")
     
-    def read_msg(self):
-        last_msg = list(self.recieved_msgs.items())[-1]
-        if last_msg[1][0] == "drone behaviours":
-            self.computer(last_msg)
-            self.send(self.signature, "module manager", ["actuators values", self.command])
+    def read_msg(self, title):
+        dico = self.recieved_msgs[title][1]
+        # print(last_msg)
+        if title == "drone behavior":
+
+            self.command_selector(dico)
+            self.send(self.signature, "Module manager", "actuators values", self.command)
+
+        elif title == "gps pos":
+            pass
+
+        elif title == "drone detection":
+            pass
                      
     
-    def computer(self, last_msg):
-        if self.behaviour_memory == "Stationary":
-             self.stationary_command()
-        if self.behaviour_memory == "Take root":
-            self.take_root_control_command()
-        pass
+    def command_selector(self, drone_behaviors):     
+        if drone_behaviors["Take root"]:
+            self.request(self.signature, "Module manager", "Need gps pos")
+            gps_pos = self.recieved_msgs["gps pos"][1]
+            self.take_root_control_command(gps_pos, (-230, 15))
+        
+        if drone_behaviors["Stationary"]:
+            self.stationary_command()
+        
+        if drone_behaviors["Leave root"]:
+            self.request(self.signature, "Module manager", "Need drone detection")
+            if len(self.recieved_msgs["drone detection"][1]):
+                drone_dist = self.recieved_msgs["drone detection"][1][0][2]
+                self.leave_root_control_command(drone_dist)
+            else:
+                pass
+
+    
+    # def computer(self, last_msg):
+    #     if self.command_memory == "Stationary":
+    #          self.stationary_command()
+    #     elif self.command_memory == "Take root":
+    #         gps_pos = last_msg[1][1]
+    #         self.take_root_control_command(gps_pos, (-230, 15))
+
     
 
     def stationary_command(self):
         self.command["forward"] = 0.0
         self.command["lateral"] = 0.0
         self.command["rotation"] = 0.0
+        self.send(self.signature, "Module manager", "stationary")
 
 
     def take_root_control_command(self, gps_pose, root_pose):
+        # print("b")
         eps = 10**(0)
         if gps_pose[1] - root_pose[1] > eps:
-            self.forward = 0.0
-            self.lateral = -0.1
-            self.rotation = 0.0
+            self.command["forward"] = 0.0
+            self.command["lateral"] = -0.1
+            self.command["rotation"] = 0.0
 
         elif gps_pose[1] - root_pose[1] < -eps:
-            self.forward = 0.0
-            self.lateral = 0.1
-            self.rotation = 0.0
+            self.command["forward"] = 0.0
+            self.command["lateral"] = 0.1
+            self.command["rotation"] = 0.0
 
         elif gps_pose[0] - root_pose[0] < -eps:
-            self.forward = 0.1
-            self.lateral = 0.0
-            self.rotation = 0.0    
+            self.command["forward"] = 0.1
+            self.command["lateral"] = 0.0
+            self.command["rotation"] = 0.0    
 
         elif gps_pose[0] - root_pose[0] > eps:
-            self.forward = -0.1
-            self.lateral = 0.0
-            self.rotation = 0.0
+            self.command["forward"] = -0.1
+            self.command["lateral"] = 0.0
+            self.command["rotation"] = 0.0
         else:
-            pass    
+            self.send(self.signature, "Module manager", "take root done")
 
 
+    def leave_root_control_command(self, drone_dist):
+        if drone_dist < 40:
+            if drone_dist - self.leave_root_pid.setpoint > 0:
+                self.command["forward"] = self.leave_root_pid(drone_dist)
+                self.command["lateral"] = 0.0
+                self.command["rotation"] = 0.0
 
-    # def brain_tickle_action_for_control(self, gps, root):
-    #     if self.current_state.id == "TakeRoot":
-    #         self.take_root_control_command(gps, root)
-    #     if self.current_state.id == "Stationary":
-    #         self.stationary_command()
+            elif drone_dist - self.leave_root_pid.setpoint < 0:
+                self.command["forward"] = self.leave_root_pid(drone_dist)
+                self.command["lateral"] = 0.0
+                self.command["rotation"] = 0.0
+        else:
+            self.command["forward"] = 0.0
+            self.command["lateral"] = 0.0
+            self.command["rotation"] = 0.0           
 
 
+    def FollowTheGap(self, gap_analysis, gap_sel):
+
+        forward = 0.0
+        lateral = 0.0
+        rotation = 0.0 
+
+        forward = 0.5
+
+        if gap_analysis[1][gap_sel] > 0:
+            rotation = (abs(gap_analysis[1][gap_sel])/math.pi) 
+            lateral = 0.1
+
+        if gap_analysis[1][gap_sel] < 0:
+            rotation = -(abs(gap_analysis[1][gap_sel])/math.pi)
+            lateral = -0.1
+
+        else:
+            pass
+
+        return((forward, lateral, rotation))
 
 
+    def CenterInIntersection(self, NegativeDetection):
+        Obst_dist_ray = NegativeDetection[1]
+        (forward, lateral, rotation) = (0.0, 0.0, 0.0)
+        if Obst_dist_ray[-1][1] - Obst_dist_ray[1][1] < -0.5:
+            forward = 0.1
+        elif Obst_dist_ray[-1][1] - Obst_dist_ray[1][1] > 0.5:
+            forward = -0.1
 
+        if Obst_dist_ray[0][1] - Obst_dist_ray[-1][1] < - 1:
+            lateral = 0.1
+        elif Obst_dist_ray[0][1] - Obst_dist_ray[-1][1] < 1:
+            lateral = -0.1
+
+        return((forward, lateral, rotation))
+        
+
+    def AlignWithTheGap(self, gap_analysis, gap_selected):
+        direction = gap_analysis[1][gap_selected]
+
+        forward = 0.0
+        lateral = 0.0
+        rotation = 0.0
+
+        if direction > 0.05:
+            rotation = 0.2
+
+        if direction < -0.05:
+            rotation = - 0.2
+        
+        return((forward, lateral, rotation))
     
-    # def on_enter_Stationary(self):
-    #     print("stationary")
-    # def on_enter_TakeRoot(self):
-    #     print(self.identifier, "take root")
+
+    def RushInTheGap(self):
+
+        forward = 0.5
+        lateral = 0.0
+        rotation = 0.0
+
+        return ((forward, lateral, rotation))
+    
+    def FollowTheExplorator(self, SEMANTICProcess, setpoint, follower):
+
+        forward = 0.0
+        lateral = 0.0
+        rotation = 0.0
+        if setpoint - SEMANTICProcess[0][0].distance > 0:
+            self.speed_control = -follower(SEMANTICProcess[0][0].distance)
+                
+        elif setpoint - SEMANTICProcess[0][0].distance < 0:
+            self.speed_control = -follower(SEMANTICProcess[0][0].distance)
+
+        (forward, lateral, rotation) = (self.speed_control, 0.0, 0.0)
+        return ((forward, lateral, rotation))
+    
+    
 
         
 

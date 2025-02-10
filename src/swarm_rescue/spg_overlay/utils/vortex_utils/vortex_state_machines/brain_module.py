@@ -26,19 +26,25 @@ class BrainModule():
     def create_link_with(self, module):
         self.subscribers[module.signature] = module
         module.subscribers[self.signature] = self
-        print(module.identifier, module.signature, module.subscribers)
+        # print(module.identifier, module.signature, module.subscribers)
 
-    def send(self, author, recipient, msg_data):
+    def send(self, author, recipient, title, *args):
         if recipient in self.subscribers:
             module = self.subscribers[recipient]
-            module.recieved_msgs[author] = msg_data
-            module.read_msg()
+            msg = (author, *args)
+            module.recieved_msgs[title] = msg
+            # if self.identifier == 0:
+            #     print(msg)
+            #     print(self.identifier, author, "msgs", recipient, title, module.recieved_msgs)
+            module.read_msg(title)
 
     def request(self, author, recipient, request):
         if recipient in self.subscribers:
             module = self.subscribers[recipient]
-            module.recieved_requests[author] = request
-            module.read_request()
+            module.recieved_requests[request] = author
+            # if self.identifier == 0:
+            #     print(self.identifier, author, "requests", recipient, request, module.recieved_requests)
+            module.read_request(request)
 
     @abstractmethod
     def read_request(self):

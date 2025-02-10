@@ -172,7 +172,7 @@ class DroneSemanticSensor(SemanticSensor):
         OTHER = auto()
 
     Data = namedtuple("Data",
-                      "distance angle entity_type grasped")
+                      "distance angle entity_type grasped identifier")
 
     def __init__(self, playground: Playground, noise=True,
                  invisible_elements=None, **kwargs):
@@ -203,26 +203,27 @@ class DroneSemanticSensor(SemanticSensor):
         null_data = self.Data(distance=np.nan,
                               angle=np.nan,
                               entity_type=np.nan,
-                              grasped=False)
+                              grasped=False,
+                              identifier=np.nan)
         self._null_sensor = [null_data] * self.resolution
 
         self._values = self._default_value
 
     def _compute_raw_sensor(self, *_):
         super()._compute_raw_sensor()
-
         # id_detections is the first column of self._values
         id_detections = self._values[:, 0].astype(int)
         # distances is the second column of self._values
         distances = self._values[:, 1]
 
         new_values = []
-
         for index, id_detection in enumerate(id_detections):
             if id_detection == 0:
                 continue
             try:
                 entity = self._playground.get_entity_from_uid(id_detection)
+
+ 
             except KeyError as error:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -242,6 +243,8 @@ class DroneSemanticSensor(SemanticSensor):
                 entity_type = self.TypeEntity.RESCUE_CENTER
             elif isinstance(entity, Agent) or isinstance(entity, DroneBase):
                 entity_type = self.TypeEntity.DRONE
+
+
             else:
                 entity_type = self.TypeEntity.OTHER
                 # print(__file__, type(entity))
@@ -262,7 +265,8 @@ class DroneSemanticSensor(SemanticSensor):
             new_detection = self.Data(distance=distance,
                                       angle=angle,
                                       entity_type=entity_type,
-                                      grasped=grasped)
+                                      grasped=grasped,
+                                      identifier = entity.agent.identifier)
             new_values.append(new_detection)
 
         self._values = new_values
@@ -299,7 +303,8 @@ class DroneSemanticSensor(SemanticSensor):
                              np.random.normal(self._std_dev_noise)),
                 angle=data.angle,
                 entity_type=data.entity_type,
-                grasped=data.grasped)
+                grasped=data.grasped,
+                identifier = data.identifier)
 
             self._values[index] = new_data
 

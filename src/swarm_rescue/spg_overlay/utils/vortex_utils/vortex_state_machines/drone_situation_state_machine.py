@@ -37,10 +37,11 @@ class Situation(BrainModule):
         "Intersection" : False,
         "Dead-end" : False,
         "Open space" : False,
+        "Corridor" : False,
         "Curve" : False,
         "Exploration possible" : False,
-        "Exploration co;pleted" : False,
-        "Visual connectivity" : False,
+        "Exploration completed" : False,
+        "Visual connectivity" : None,
         "Critical visual connectivity" : False,
         "Too close" : False,
         "All branch explored" : False,
@@ -48,20 +49,52 @@ class Situation(BrainModule):
         }
 
 
+        self.recieved_requests = {
+        "Need situation" : None
+        }
 
-    def read_request(self):
-        last_request = list(self.recieved_requests.items())[-1]
-        if last_request[1] == "situation":
-            self.request(self.signature, "module manager", "Need sensors analyze")
-    
-    def read_msg(self):
-        last_msg = list(self.recieved_msgs.items())[-1]
-        if last_msg[1][0] == "analyzed data":
-            self.situation_determination(last_msg)
-            self.send(self.signature, "module manager", ["drone situation", self.drone_situation])
+        self.recieved_msgs = {
+        "analyzed data" : None,
+        "change situation to root" : None
+        }
+
+
+    def read_request(self, request):
+        if request == "Need situation":
+            if self.drone_situation["Stock"] == True:
+                self.send(self.signature, "Module manager", "drone situation", self.drone_situation)
+            else:
+                self.request(self.signature, "Module manager", "Need sensors analyze")
+
+    def read_msg(self, title):
+        if len(self.recieved_msgs[title]) > 1:
+            dico = self.recieved_msgs[title][1]
+        if title == "analyzed data":
+            self.situation_determination(dico)
+            self.send(self.signature, "Module manager", "drone situation", self.drone_situation)
+        
+        elif title == "change situation to root":
+            self.drone_situation["Stock"] = False
+            self.drone_situation["Root"] = True
+            self.send(self.signature, "Module manager", "situation changed to root")
+
+        
 
     def situation_determination(self, analyzed_data):
-        pass
+        if analyzed_data["positive gap number"] >= 3:
+            self.drone_situation["Intersection"] = True
+        elif analyzed_data["positive gap number"] == 2:
+            self.drone_situation["Corridor"] = True
+        elif analyzed_data["positive gap number"] <= 1:
+            self.drone_situation["Dead end"] = True
+        
+        if len(analyzed_data["visual connectivity"]) > 0:
+            self.drone_situation["Visual connectivity"] = [True, analyzed_data["visual connectivity"]]
+
+
+        
+        
+
 
 
 

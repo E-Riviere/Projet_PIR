@@ -123,7 +123,7 @@ class GuiSR(TopDownView):
         self._terminate = False
 
         self.fps_display = FpsDisplay(period_display=2)
-        self._keyboardController = KeyboardController()
+        self._keyboardController = KeyboardController(self._number_drones)
         self._mouse_measure = MouseMeasure(playground_size=playground.size)
         self._visu_noises = VisuNoises(playground_size=playground.size,
                                        drones=self._drones)
@@ -168,7 +168,7 @@ class GuiSR(TopDownView):
             self._drones[i].elapsed_walltime = self._elapsed_walltime
             self._drones[i].elapsed_timestep = self._elapsed_timestep
             command = self._drones[i].control()
-            if self._use_keyboard and i == 0:
+            if self._use_keyboard and self._keyboardController.identifier == i:
                 command = self._keyboardController.control()
 
             self._drones_commands[self._drones[i]] = command
@@ -262,11 +262,13 @@ class GuiSR(TopDownView):
 
         if self._draw_lidar_rays:
             for drone in self._playground.agents:
-                drone.lidar().draw()
+                if drone.identifier == 0:
+                    drone.lidar().draw()
 
         if self._draw_semantic_rays:
             for drone in self._playground.agents:
-                drone.semantic().draw()
+                if drone.identifier == 0:
+                    drone.semantic().draw()
 
         if self._draw_gps:
             for drone in self._playground.agents:

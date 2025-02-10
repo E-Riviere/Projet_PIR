@@ -9,13 +9,16 @@ class KeyboardController:
     rotation, and the grasper.
     """
 
-    def __init__(self):
+    def __init__(self, number_drones):
         # A dictionary that stores the current command values for forward movement, lateral movement, rotation,
         # and the grasper.
         self._command = {"forward": 0.0,
                          "lateral": 0.0,
                          "rotation": 0.0,
                          "grasper": 0}
+        
+        self.identifier = 0
+        self.number_drones = number_drones
 
     # def on_key_press(self, key, modifiers, commands: Dict[Union[str, Controller], Command]):
     def on_key_press(self, key, modifiers):
@@ -41,6 +44,11 @@ class KeyboardController:
 
             if key == arcade.key.W:
                 self._command["grasper"] = 1
+
+            if key == arcade.key.I:
+                self.identifier += 1
+                if self.identifier % self.number_drones == 0:
+                    self.identifier = 0
 
     # def on_key_release(self, key, modifiers, commands: Dict[Union[str, Controller], Command]):
     def on_key_release(self, key, modifiers):
