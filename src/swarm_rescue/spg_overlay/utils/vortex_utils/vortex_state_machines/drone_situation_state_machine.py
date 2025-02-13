@@ -41,7 +41,7 @@ class Situation(BrainModule):
         "Curve" : False,
         "Exploration possible" : False,
         "Exploration completed" : False,
-        "Visual connectivity" : None,
+        "Visual connectivity" : [None],
         "Critical visual connectivity" : False,
         "Too close" : False,
         "All branch explored" : False,
@@ -55,7 +55,8 @@ class Situation(BrainModule):
 
         self.recieved_msgs = {
         "analyzed data" : None,
-        "change situation to root" : None
+        "change situation to root" : None,
+        "change situation from root": None
         }
 
 
@@ -78,18 +79,30 @@ class Situation(BrainModule):
             self.drone_situation["Root"] = True
             self.send(self.signature, "Module manager", "situation changed to root")
 
+        elif title == "change situation from root":
+            self.drone_situation["Root"] = False
+            self.send(self.signature, "Module manager", "situation changed")
+
         
 
     def situation_determination(self, analyzed_data):
         if analyzed_data["positive gap number"] >= 3:
-            self.drone_situation["Intersection"] = True
+            self.drone_situation["Intersection"] = [True, analyzed_data["positive gap number"]]
+            self.drone_situation["Corridor"] = False
+            self.drone_situation["Dead end"] = False
         elif analyzed_data["positive gap number"] == 2:
+            self.drone_situation["Intersection"] = False
             self.drone_situation["Corridor"] = True
+            self.drone_situation["Dead end"] = False
         elif analyzed_data["positive gap number"] <= 1:
+            self.drone_situation["Intersection"] = False
+            self.drone_situation["Corridor"] = False
             self.drone_situation["Dead end"] = True
         
         if len(analyzed_data["visual connectivity"]) > 0:
             self.drone_situation["Visual connectivity"] = [True, analyzed_data["visual connectivity"]]
+        else:
+            self.drone_situation["Visual connectivity"] = [None]
 
 
         

@@ -32,7 +32,6 @@ class SensorsAnalyzer(BrainModule):
         "minimum lidar detection": None,
         "maximum lidar detection": None,
         "drone detection" : None,
-        "detection cone": [],
         "visual connectivity" : []
         }
 
@@ -61,14 +60,15 @@ class SensorsAnalyzer(BrainModule):
             self.analyzed_data["positive gap index ray"] = self.PositiveGapDetector(lidar_data, self.distance_treshold)
             self.UpdateGapDetection(self.analyzed_data["positive gap index ray"])
             self.analyzed_data["positive gap number"] = len(self.analyzed_data["positive gap detection memory"])
-            self.analyzed_data["positive gap angle ray"], self.analyzed_data["positive gap direction"] = self.ComputePositiveGap(self.analyzed_data["positive gap detection memory"], lidar_data)[:2]
+            self.analyzed_data["positive gap angle ray"], self.analyzed_data["positive gap direction"] = self.ComputePositiveGap(self.analyzed_data["positive gap detection memory"],lidar_ray_angles)[:2]
             self.analyzed_data["negative gap index ray"], self.analyzed_data["negative gap dist ray"], self.analyzed_data["negative gap angle ray"] = self.NegativeGapDetector(lidar_data, lidar_ray_angles)[:3]
             self.analyzed_data["negative gap number"] = len(self.analyzed_data["negative gap index ray"])
             self.analyzed_data["minimum lidar detection"] = min(lidar_data)
             self.analyzed_data["maximum lidar detection"] = max(lidar_data)
             self.analyzed_data["drone detection"] = self.DroneSemanticDetection(semantic_data)
-            self.analyzed_data["detection cone"] = self.DetectionCone(self.analyzed_data["drone detection"])
-            self.analyzed_data["visual connectivity"] = self.visual_connectvity_list(self.analyzed_data["positive gap detection memory"],self.analyzed_data["drone detection"])
+            self.analyzed_data["visual connectivity"] = self.visual_connectvity_list(self.analyzed_data["positive gap detection memory"],
+                                                                                     self.analyzed_data["drone detection"],
+                                                                                     self.CriticalVisualConnexion(lidar_data, self.analyzed_data["drone detection"]))
 
 
 
@@ -211,7 +211,6 @@ class SensorsAnalyzer(BrainModule):
 
     #Modification de liste d'etat self.detectionMemorie en fonction des nouveaux gaps detectes 
     def UpdateGapDetection(self, GAP_index_ray):
-        # GAP_index_ray = self.PositiveGapDetector(lidar_data, self.distance_treshold)
         counter_match_memorie_gap = 0
         unmatch_memorie_gap = [gap[0] for gap in self.analyzed_data["positive gap detection memory"]]
 
@@ -410,7 +409,7 @@ class SensorsAnalyzer(BrainModule):
                 drone_id_ray.append(data.identifier)
                 drone_index_ray.append(self.FromAngleToRay(data.angle, semantic_angles))
 
-        drone_detection = {str(id):[[],[],[],[],[],[]] for id in drone_id_ray}
+        drone_detection = {str(id):[[],[],[],[],[],[],[]] for id in drone_id_ray}
         for i, id in enumerate(drone_id_ray):
             drone_detection[str(id)][0].append(int(drone_index_ray[i]))
             drone_detection[str(id)][1].append(float(drone_angle_ray[i]))
@@ -422,7 +421,7 @@ class SensorsAnalyzer(BrainModule):
 
         for id in drone_detection.keys():
                 drone_detection[id][3] = float(numpy.mean(drone_detection[id][2]))
-                if drone_detection[id][0][0] == 1 and drone_detection[id][0][-1] == 181:
+                if drone_detection[id][0][0] <= 2 and drone_detection[id][0][-1] >= 180:
                     drone_detection[id][5] = (int(min(index for index in drone_detection[id][0] if index > 90)),
                                                 int(max(index for index in drone_detection[id][0] if index < 90)))
                     start_angle = self.FromRayToAngle(drone_detection[id][5][0], semantic_angles, False)
@@ -432,8 +431,9 @@ class SensorsAnalyzer(BrainModule):
                     drone_detection[id][5] = (drone_detection[id][0][0], drone_detection[id][0][-1])
                     start_angle = self.FromRayToAngle(drone_detection[id][5][0], semantic_angles, False)
                     end_angle = self.FromRayToAngle(drone_detection[id][5][1], semantic_angles, False)
-                    drone_detection[id][4] = normalize_angle((start_angle + end_angle)/2) #Drone direction
-
+                    drone_detection[id][4] = normalize_angle((start_angle + end_angle)/2)
+        
+        self.DetectionCone(drone_detection)        
             
         return drone_detection
 
@@ -442,9 +442,8 @@ class SensorsAnalyzer(BrainModule):
         semantic_angles = compute_ray_angles(2*math.pi, 181)
         resolution = abs(semantic_angles[0] - semantic_angles[1])
 
-        detection_cone = []
-        for i,element in enumerate(drone_detection.values()):
-            frame = list(element[5])
+        for id, detection in drone_detection.items():
+            frame = list(detection[5])
             extended_frame0 = frame[0]
             if frame[0] > 1:
                 angle = self.FromRayToAngle(frame[0], semantic_angles) - 2 * resolution
@@ -459,33 +458,42 @@ class SensorsAnalyzer(BrainModule):
                     angle = math.pi * 2
                 frame[1] = self.FromAngleToRay(angle, semantic_angles)
                 extended_frame1 = frame[1]
-            detection_cone.append([extended_frame0, extended_frame1])
-        return detection_cone
+
+            drone_detection[id][6]=[extended_frame0, extended_frame1]
 
 
-    def CriticalVisualConnexion(self, lidar_data, drone_detection, detection_cone):
-        pass
+    def CriticalVisualConnexion(self, lidar_data, drone_detection):
+        CVC = []
 
-        # if len(drone_dist) > 0:
-        #     obst_detection = False
-        #     drone_dist
-        #     for frame in detection_cone:
-        #         for i in range(frame[0], frame[1] + 1):
-        #             if lidar_data[i - 1] < mean_dist:
-        #                 #print("obst", self.identifier)
-        #                 self.critical_visual_connectivity = True
-        #                 obst_detection = True
+        for id, detection in drone_detection.items():
+            drone_dist = detection[3]
+            detection_cone = detection[6]
+            obst = False
+            cvc = False
 
-        #     if not obst_detection:
-        #         self.critical_visual_connectivity = False
-        #     if mean_dist > 150:
-        #         self.critical_visual_connectivity = True
-        # else:
-        #     self.visual_connectivity = False
-        #     self.critical_visual_connectivity = False
+            if drone_dist > 150:
+                cvc = True
+
+            if detection_cone[0] > detection_cone[1]:
+                for i in range(detection_cone[0], 181 + 1):
+                    if lidar_data[i - 1] < drone_dist:
+                        obst = True
+                for i in range(1, detection_cone[1]):
+                    if lidar_data[i - 1] < drone_dist:
+                        obst = True
+
+            else:
+                for i in range(detection_cone[0], detection_cone[1] + 1):
+                    if lidar_data[i - 1] < drone_dist:
+                        obst = True
+
+            if obst is True or cvc is True:
+                CVC.append(id)
+
+        return(CVC)
 
 
-    def visual_connectvity_list(self, gap_detection_memory, drone_detection):
+    def visual_connectvity_list(self, gap_detection_memory, drone_detection, cvc_list):
         
         semantic_angles = compute_ray_angles(2*math.pi, 181)
         VC_list = []
@@ -500,19 +508,29 @@ class SensorsAnalyzer(BrainModule):
                         if VC is not None:
                             if detection[3] < VC[2]:
                                 VC = [id, drone_index, detection[3], frame[0]]
+                                if id in cvc_list:
+                                    VC.append("CVC")
                         else:
                             VC = [id, drone_index, detection[3], frame[0]]
+                            if id in cvc_list:
+                                VC.append("CVC")
 
                 else:
                     if drone_index >= frame[1] and drone_index <= frame[2]:
                         if VC is not None:
                             if detection[3] < VC[2]:
                                 VC = [id, drone_index, detection[3], frame[0]]
+                                if id in cvc_list:
+                                    VC.append("CVC")
                         else:
                             VC = [id, drone_index, detection[3], frame[0]]
-
+                            if id in cvc_list:
+                                VC.append("CVC")
+                
+            
             if VC is not None:
                 VC_list.append(VC)
+
 
         return VC_list
 

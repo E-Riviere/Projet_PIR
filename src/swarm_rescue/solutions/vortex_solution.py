@@ -70,7 +70,9 @@ class MyDroneVortex(BrainModule, DroneAbstract):
         "Need role" : None,
         "Need visual com" : None,
         "Need gps pos" : None,
-        "Need drone detection" : None
+        "Need drone detection" : None,
+        "Need positive gap directions" : None,
+        "Need negative gap distance" : None
         }
 
         self.recieved_msgs = {
@@ -79,14 +81,20 @@ class MyDroneVortex(BrainModule, DroneAbstract):
         "drone behavior" : None,
         "actuators values" : None,
         "take root done": None,
+        "move done" : None,
         "change role" : None,
         "set first drone role" : None,
         "first drone role set" : None,
         "change situation to root" : None,
         "situation changed to root" : None,
+        "change situation from root" : None,
+        "situation changed" : None,
         "send branch reconfiguration" : None,
         "send more agent required" : None,
         "send come closer" : None,
+        "centered" : None,
+        "aligned" : None,
+        "too close" : None
         }
 
 
@@ -123,6 +131,12 @@ class MyDroneVortex(BrainModule, DroneAbstract):
 
         elif request == "Need drone detection":
             self.send(self.signature, self.actuators_computer.signature, "drone detection", self.sensors_analyzer.analyzed_data["visual connectivity"])
+        
+        elif request == "Need positive gap directions":
+            self.send(self.signature, self.actuators_computer.signature, "gap dir", self.sensors_analyzer.analyzed_data["positive gap direction"])
+
+        elif request == "Need negative gap distance":
+            self.send(self.signature, self.actuators_computer.signature, "neg gap dist", self.sensors_analyzer.analyzed_data["negative gap dist ray"])
 
 
     
@@ -136,8 +150,6 @@ class MyDroneVortex(BrainModule, DroneAbstract):
             self.send(self.signature, self.behavior.signature, title, dico)
 
         elif title == "drone behavior":
-            # if self.identifier == 1:
-            #     print(self.behavior.behavior_set_name)
             self.send(self.signature, self.actuators_computer.signature, title, dico)
 
         elif title == "actuators values":
@@ -160,11 +172,29 @@ class MyDroneVortex(BrainModule, DroneAbstract):
         
         elif title == "change situation to root":
             self.send(self.signature, self.situation.signature, title)
+
+        elif title == "change situation from root":
+            self.send(self.signature, self.situation.signature, title)
         
         elif title == "situation changed to root":
             self.send(self.signature, self.behavior.signature, title)
         
+        elif title == "situation changed":
+            self.send(self.signature, self.behavior.signature, title)
+        
         elif title == "leave root done":
+            self.send(self.signature, self.behavior.signature, title)
+
+        elif title == "move done":
+            self.send(self.signature, self.behavior.signature, title)
+        
+        elif title == "centered":
+            self.send(self.signature, self.behavior.signature, title)
+        
+        elif title == "aligned":
+            self.send(self.signature, self.behavior.signature, title)
+
+        elif title == "too close":
             self.send(self.signature, self.behavior.signature, title)
 
 
@@ -204,6 +234,8 @@ class MyDroneVortex(BrainModule, DroneAbstract):
                 self.send(self.signature, self.behavior.signature,"com send")
             if self.recieved_msgs["send come closer"]:
                 visual_com["visual msgs"].append("purple")
+                self.recieved_msgs["send come closer"] = None
+                self.send(self.signature, self.behavior.signature,"com send")
 
             # if self.identifier == 1:
             #     print(visual_com)

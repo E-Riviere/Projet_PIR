@@ -4,22 +4,6 @@ from statemachine import StateMachine
 from spg_overlay.utils.vortex_utils.vortex_state_machines.brain_module import BrainModule
 
 class Behaviour(BrainModule):
-
-    # WaitingInStock = State(initial=True)
-    # LeaderStart = State(value = 2)
-    # # CalledToEnterTheEnvironment = State()
-    # # NeedSomeoneCloser = State()
-    # # LeaveTheRoot = State()
-    # # ExplorationPossible = State()
-    # # PositionReplacement = State()
-    # # BeingReplacedAtPose = State()
-    # # DeadEndReached = State()
-    # # BranchReconfiguration = State()
-    # # LoopDetected = State ()
-
-    # Leader_start = WaitingInStock.to(LeaderStart, on = "actions_leader_start") | LeaderStart.to.itself(on = "actions_leader_start") | LeaderStart.to.itself(on = "actions_leader_start")
-
-    
     
     def __init__(self,
                  signature,
@@ -41,7 +25,8 @@ class Behaviour(BrainModule):
         "Centering" : False,
         "Change role" : False,
         "Change situation" : False,
-        "Send msg" : False
+        "Send msg" : False,
+        "Waiting for agent" : False
         }
 
         self.recieved_requests = {
@@ -53,7 +38,14 @@ class Behaviour(BrainModule):
         "take root done" : None,
         "drone role" : None,
         "recieved visual com" : None,
-        "com send" : None
+        "com send" : None,
+        "drone role set" : None,
+        "situation changed to root" : None,
+        "situation changed" : None,
+        "move done" : None,
+        "centered": None,
+        "aligned" : None,
+        "too close" : None
         }
 
         self.behavior_set = {}
@@ -62,7 +54,7 @@ class Behaviour(BrainModule):
         "Drone waiting in stock" : True,
         "First drone start" : False,
         "Called to enter the environment" : False,
-        "Need agent closer" : False,
+        "Follower come closer" : False,
         "Leader leave the root" : False,
         "Follower leave the root" : False,
         "Position replacement" : False,
@@ -70,7 +62,10 @@ class Behaviour(BrainModule):
         "Being replaced at pose" : False,
         "Branch reconfiguration" : False,
         "Loop detected" : False,
-        "Leader continu exploration" : False
+        "Leader continu exploration" : False,
+        "Leader manage intersection" : False,
+        "Follower manage intersection" : False,
+        "Root follower come closer" : False
         }
 
         self.visual_msg = None
@@ -122,7 +117,24 @@ class Behaviour(BrainModule):
 
             if self.behavior_set_name["Leader leave the root"]:
                 del self.behavior_set["Stationary"]
-                self.send(self.signature, "Module manager",)
+                self.send(self.signature, "Module manager", "change situation from root")
+            
+            if self.behavior_set_name["Leader manage intersection"]:
+                if self.recieved_msgs["drone situation"][1]["Visual connectivity"][1][0][2] < 40:
+                    del self.behavior_set["Stationary"]
+                    self.behavior_determination()
+                else:
+                    pass
+
+            if self.behavior_set_name["Follower come closer"]:
+                if self.recieved_msgs["drone situation"][1]["Visual connectivity"][1][-1][2] > 50:
+                    del self.behavior_set["Stationary"]
+                    self.behavior_determination()
+                else:
+                    pass
+            
+            if self.behavior_set_name["Root follower come closer"]:
+                pass
             
             elif self.behavior_set_name["Drone waiting in stock"]:
                 del self.behavior_set["Stationary"]
@@ -146,10 +158,41 @@ class Behaviour(BrainModule):
             if self.behavior_set_name["Called to enter the environment"]:
                 del self.behavior_set["Change situation"]
             
+        if title == "situation changed":
+            if self.behavior_set_name["Leader leave the root"]:
+                del self.behavior_set["Change situation"]
+            if self.behavior_set_name["Root follower come closer"]:
+                del self.behavior_set["Change situation"]
 
         if title == "com send":
             del self.behavior_set["Send msg"]
             self.behavior_determination()
+
+
+        if title == "move done":
+            if self.behavior_set_name["Leader continu exploration"]:
+                del self.behavior_set["Follow the gap"]
+            
+
+        if title == "centered":
+            # print(self.behavior_set_name)
+            if self.behavior_set_name["Leader manage intersection"]:
+                del self.behavior_set["Centering"]
+                self.behavior_determination()
+            if self.behavior_set_name["Follower manage intersection"]:
+                del self.behavior_set["Centering"]
+                self.behavior_determination()
+        
+        if title == "aligned":
+            if self.behavior_set_name["Leader manage intersection"]:
+                del self.behavior_set["Rotation to the left most gap"]
+                self.behavior_determination()
+        
+        if title == "too close":
+            if self.behavior_set_name["Follower come closer"]:
+                # print(self.identifier, self.recieved_msgs["drone situation"][1])
+                del self.behavior_set["Get closer"]
+
 
 
     def procedure_determination(self, drone_situation):
@@ -175,9 +218,60 @@ class Behaviour(BrainModule):
                 self.behavior_set["Change role"] = 2
                 self.behavior_set["Change situation"] = 3
 
-            elif drone_situation["Visual connectivity"] and self.recieved_msgs["drone role"][1]["Leader"]:
+            elif (drone_situation["Visual connectivity"][0] is True
+                  and self.recieved_msgs["drone role"][1]["Leader"]
+                  and drone_situation["Corridor"]):
+                
                 self.behavior_set_name["Leader continu exploration"] = True
                 self.clear_behavior_set_name("Leader continu exploration")
+                self.behavior_set["Follow the gap"] = 0
+
+            elif (drone_situation["Visual connectivity"][0] is True
+                  and self.recieved_msgs["drone role"][1]["Leader"]
+                  and isinstance(drone_situation["Intersection"], list)):
+                
+                self.behavior_set_name["Leader manage intersection"] = True
+                self.clear_behavior_set_name("Leader manage intersection")
+                self.behavior_set["Centering"] = 0
+                self.behavior_set["Rotation to the left most gap"] = 1
+                self.behavior_set["Send msg"] = 2
+                self.behavior_set["Stationary"] = 3
+                self.behavior_set["Follow the gap"] = 4
+
+            elif (drone_situation["Visual connectivity"][0] is True
+                  and self.recieved_msgs["drone role"][1]["Follower"]
+                  and isinstance(drone_situation["Intersection"], list)):
+                
+                print(self.identifier, drone_situation)
+                self.behavior_set_name["Follower manage intersection"] = True
+                self.clear_behavior_set_name("Follower manage intersection")
+                self.behavior_set["Centering"] = 0
+                self.behavior_set["Stationary"] = 1
+
+            elif (self.recieved_msgs["drone role"][1]["Follower"]
+                  and drone_situation["Root"] is True
+                  and drone_situation["Visual connectivity"][0] is True
+                  and self.visual_msg == "purple"):
+                
+                self.behavior_set_name["Root follower come closer"]
+                self.clear_behavior_set_name("Root follower come closer")
+                self.behavior_set["Send msg"] = 0
+                self.behavior_set["Leave root"] = 1
+                self.behavior_set["Change situation"] = 3
+                self.behavior_set["Get closer"] = 4
+                self.behavior_set["Stationary"] = 5
+                self.behavior_set["Follow the gap"] = 6
+
+            elif (self.recieved_msgs["drone role"][1]["Follower"]
+                  and drone_situation["Visual connectivity"][0] is True
+                  and self.visual_msg == "purple"):
+                
+                self.behavior_set_name["Follower come closer"]
+                self.clear_behavior_set_name("Follower come closer")
+                self.behavior_set["Get closer"] = 0
+                self.behavior_set["Stationary"] = 1
+                self.behavior_set["Follow the gap"] = 2
+                
 
             elif drone_situation["Stock"]:
                 if self.identifier == 0:
@@ -192,8 +286,9 @@ class Behaviour(BrainModule):
                     self.behavior_set_name["Drone waiting in stock"] = True
                     self.clear_behavior_set_name("Drone waiting in stock")
                     self.behavior_set["Stationary"] = 0
-            
-            
+
+
+
 
     def behavior_determination(self):
         for behavior in self.drone_behaviors:
@@ -205,11 +300,37 @@ class Behaviour(BrainModule):
             else:
                 self.drone_behaviors[behavior] = False
 
+        if self.drone_behaviors["Follow the gap"]:
+
+            if self.behavior_set_name["Leader continu exploration"]:
+                self.drone_behaviors["Follow the gap"] = [True, 1]
+        
+            
+            elif self.behavior_set_name["Follower come closer"]:
+                if self.recieved_msgs["drone situation"][1]["Corridor"] is True:
+                    print("aaa")
+                    self.drone_behaviors["Follow the gap"] = [True, 1]
+                elif self.recieved_msgs["drone situation"][1]["Intersection"][0] is True:
+                    print("bbb")
+                    del self.behavior_set["Follow the gap"]
+                
+
+            elif self.behavior_set_name["Leader manage intersection"]:
+                if isinstance(self.recieved_msgs["drone situation"][1]["Intersection"], list):
+                    self.drone_behaviors["Follow the gap"] = [True, self.recieved_msgs["drone situation"][1]["Intersection"][1]-1]
+                if self.recieved_msgs["drone situation"][1]["Corridor"]:
+                    del self.behavior_set["Follow the gap"]
+            
+        if self.drone_behaviors["Rotation to the left most gap"]:
+            self.drone_behaviors["Rotation to the left most gap"] = [True, self.recieved_msgs["drone situation"][1]["Intersection"][1]-1]
+
         if self.drone_behaviors["Send msg"]:
             if self.behavior_set_name["Dead end reached"]:
                 self.send(self.signature, "Module manager", "send branch reconfiguration")
-            if self.behavior_set_name["Leader leave the root"]:
-                self.send(self.signature, "Module manager", "send more agent required")              
+            if self.behavior_set_name["Leader leave the root"] or self.behavior_set_name["Root follower come closer"]:
+                self.send(self.signature, "Module manager", "send more agent required") 
+            if self.behavior_set_name["Leader manage intersection"]:
+                self.send(self.signature, "Module manager", "send come closer")     
 
 
 
@@ -219,24 +340,40 @@ class Behaviour(BrainModule):
             coms = []
             for com in communication:
                 coms.append(com[1])
-        
-            # for com in coms:
-            #     if com["id"] in vc_list:
-            #         pass
+
+            if  vc_list[0] is not None:
+                id_vc = [int(vc[0]) for vc in vc_list[1]]
+
+                for com in coms:
+                    if com["id"] in id_vc:
+                        if len(com["visual msgs"])>0 and "purple" in com["visual msgs"]:
+                            self.visual_msg = "purple"
+                            print(self.identifier, self.visual_msg)
 
 
             if self.behavior_set_name["Drone waiting in stock"]:
                 for com in coms:
                     if len(com["visual msgs"])>0 and com["visual msgs"][0][1] == self.identifier:
                         self.visual_msg = com["visual msgs"][0][0]
-                        print(self.visual_msg)
+                        print(self.identifier, self.visual_msg)
 
-            if self.behavior_set_name["Leader leave the root"]:
+            if (self.behavior_set_name["Leader leave the root"]
+                and len(list(self.behavior_set.values())) > 0
+                and self.drone_behaviors["Leave root"]):
                 for com in coms:
                     if len(com["visual indications"])>0 and com["visual indications"][0] == "white":
-                        print(self.identifier, self.behavior_set)
                         del self.behavior_set["Leave root"]
                         self.behavior_determination()
+
+            if (self.behavior_set_name["Root follower come closer"]
+                and len(list(self.behavior_set.values())) > 0
+                and self.drone_behaviors["Leave root"]):
+                for com in coms:
+                    if len(com["visual indications"])>0 and com["visual indications"][0] == "white":
+                        del self.behavior_set["Leave root"]
+                        self.behavior_determination()
+                        self.send(self.signature, "Module manager", "change situation from root")
+                        
 
 
 
