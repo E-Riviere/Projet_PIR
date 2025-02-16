@@ -7,6 +7,46 @@ from spg_overlay.utils.utils import normalize_angle
 from spg_overlay.entities.drone_distance_sensors import DroneSemanticSensor
 from spg_overlay.entities.drone_distance_sensors import compute_ray_angles
 
+
+#Calcul raie-angle
+def FromRayToAngle(ray, sensor_angle, mirror = False):
+    if mirror:
+        return(sensor_angle[ray - 1] + 2*math.pi)
+    else:
+        return(sensor_angle[ray - 1])
+
+def FromAngleToRay(alpha, sensor_angle):
+    frame1 = None
+    frame2 = None
+    for i, angle in enumerate(sensor_angle):
+        if alpha == angle:
+            return(i + 1)
+        if i == len(sensor_angle) - 1:
+            return(i + 1)
+        elif alpha > angle and alpha < sensor_angle[i+1] :
+            frame1 = (i + 1, angle)
+            frame2 = (i + 2, sensor_angle[i+1])
+            delta1 = abs(alpha - frame1[1])
+            delta2 = abs(alpha - frame2[1])
+            if delta1 < delta2:
+                return(frame1[0])
+            else:
+                return(frame2[0])
+
+def AngleBetweenRay(ray_1, ray_2, ray_angles, mirror = False):
+
+    if not mirror:
+        angle_ray_1 = FromRayToAngle(ray_1, ray_angles, False)
+        angle_ray_2 = FromRayToAngle(ray_2, ray_angles, False)
+        return abs(normalize_angle(angle_ray_1 - angle_ray_2))
+    else:
+        angle_ray_1 = FromRayToAngle(ray_1, ray_angles, False)
+        angle_ray_2 = FromRayToAngle(ray_2, ray_angles, True)
+        return abs(angle_ray_1 - angle_ray_2)
+    
+def AngleBetweenDir(dir_1, dir_2):
+    return abs(normalize_angle(dir_1 - dir_2))
+
 class SensorsAnalyzer(BrainModule):
     def __init__(self,
                  signature,
@@ -32,7 +72,8 @@ class SensorsAnalyzer(BrainModule):
         "minimum lidar detection": None,
         "maximum lidar detection": None,
         "drone detection" : None,
-        "visual connectivity" : []
+        "visual connectivity" : [],
+        "collision" : []
         }
 
         self.recieved_requests = {
@@ -69,53 +110,10 @@ class SensorsAnalyzer(BrainModule):
             self.analyzed_data["visual connectivity"] = self.visual_connectvity_list(self.analyzed_data["positive gap detection memory"],
                                                                                      self.analyzed_data["drone detection"],
                                                                                      self.CriticalVisualConnexion(lidar_data, self.analyzed_data["drone detection"]))
-
-
-
-
-
-    #Calcul raie-angle
-    def FromRayToAngle(self, ray, sensor_angle, mirror = False):
-        if mirror:
-            return(sensor_angle[ray - 1] + 2*math.pi)
-        else:
-            return(sensor_angle[ray - 1])
-
-    def FromAngleToRay(self, alpha, sensor_angle):
-        frame1 = None
-        frame2 = None
-        for i, angle in enumerate(sensor_angle):
-            if alpha == angle:
-                return(i + 1)
-            if i == len(sensor_angle) - 1:
-                return(i + 1)
-            elif alpha > angle and alpha < sensor_angle[i+1] :
-                frame1 = (i + 1, angle)
-                frame2 = (i + 2, sensor_angle[i+1])
-                delta1 = abs(alpha - frame1[1])
-                delta2 = abs(alpha - frame2[1])
-                if delta1 < delta2:
-                    return(frame1[0])
-                else:
-                    return(frame2[0])
-
-    def AngleBetweenRay(self, ray_1, ray_2, ray_angles, mirror = False):
-
-        if not mirror:
-            angle_ray_1 = self.FromRayToAngle(ray_1, ray_angles, False)
-            angle_ray_2 = self.FromRayToAngle(ray_2, ray_angles, False)
-            return abs(normalize_angle(angle_ray_1 - angle_ray_2))
-        else:
-            angle_ray_1 = self.FromRayToAngle(ray_1, ray_angles, False)
-            angle_ray_2 = self.FromRayToAngle(ray_2, ray_angles, True)
-            return abs(angle_ray_1 - angle_ray_2)
-        
-    def AngleBetweenDir(self, dir_1, dir_2):
-        return abs(normalize_angle(dir_1 - dir_2))
-    
+            self.analyzed_data["collision"] = self.CollideDetection(lidar_data)
 
     #Collision
-    def _CollideDetection(self, lidar_data):
+    def CollideDetection(self, lidar_data):
         Obst = []
         if min(lidar_data) < 20:
             for i, dist in enumerate(lidar_data):
@@ -183,16 +181,16 @@ class SensorsAnalyzer(BrainModule):
         for index in detection_memorie:
 
             if index[1] > index[2]:
-                start_angle = self.FromRayToAngle(index[1], ray_angles, False)
-                end_angle = self.FromRayToAngle(index[2], ray_angles, True)
+                start_angle = FromRayToAngle(index[1], ray_angles, False)
+                end_angle = FromRayToAngle(index[2], ray_angles, True)
 
                 GAP_angle.append([start_angle, end_angle])
                 GAP_size.append(abs(start_angle - end_angle))
                 GAP_direction.append(normalize_angle((start_angle + end_angle)/2))
 
             else:
-                start_angle = self.FromRayToAngle(index[1], ray_angles, False)
-                end_angle = self.FromRayToAngle(index[2], ray_angles, False)
+                start_angle = FromRayToAngle(index[1], ray_angles, False)
+                end_angle = FromRayToAngle(index[2], ray_angles, False)
 
                 GAP_angle.append([start_angle, end_angle])
                 GAP_size.append(abs(start_angle - end_angle))
@@ -371,9 +369,9 @@ class SensorsAnalyzer(BrainModule):
 
             for index in Obst_index_ray:
                 
-                start_angle = self.FromRayToAngle(index[0], ray_angles, False)
-                min_angle = self.FromRayToAngle(index[1], ray_angles, False)
-                end_angle = self.FromRayToAngle(index[2], ray_angles, False)
+                start_angle = FromRayToAngle(index[0], ray_angles, False)
+                min_angle = FromRayToAngle(index[1], ray_angles, False)
+                end_angle = FromRayToAngle(index[2], ray_angles, False)
 
                 Obst_angle_ray.append([start_angle, min_angle, end_angle])
 
@@ -407,7 +405,7 @@ class SensorsAnalyzer(BrainModule):
                 drone_angle_ray.append(data.angle)
                 drone_dist_ray.append(data.distance)
                 drone_id_ray.append(data.identifier)
-                drone_index_ray.append(self.FromAngleToRay(data.angle, semantic_angles))
+                drone_index_ray.append(FromAngleToRay(data.angle, semantic_angles))
 
         drone_detection = {str(id):[[],[],[],[],[],[],[]] for id in drone_id_ray}
         for i, id in enumerate(drone_id_ray):
@@ -424,13 +422,13 @@ class SensorsAnalyzer(BrainModule):
                 if drone_detection[id][0][0] <= 2 and drone_detection[id][0][-1] >= 180:
                     drone_detection[id][5] = (int(min(index for index in drone_detection[id][0] if index > 90)),
                                                 int(max(index for index in drone_detection[id][0] if index < 90)))
-                    start_angle = self.FromRayToAngle(drone_detection[id][5][0], semantic_angles, False)
-                    end_angle = self.FromRayToAngle(drone_detection[id][5][1], semantic_angles, True)
+                    start_angle = FromRayToAngle(drone_detection[id][5][0], semantic_angles, False)
+                    end_angle = FromRayToAngle(drone_detection[id][5][1], semantic_angles, True)
                     drone_detection[id][4] = normalize_angle((start_angle + end_angle)/2)
                 else:
                     drone_detection[id][5] = (drone_detection[id][0][0], drone_detection[id][0][-1])
-                    start_angle = self.FromRayToAngle(drone_detection[id][5][0], semantic_angles, False)
-                    end_angle = self.FromRayToAngle(drone_detection[id][5][1], semantic_angles, False)
+                    start_angle = FromRayToAngle(drone_detection[id][5][0], semantic_angles, False)
+                    end_angle = FromRayToAngle(drone_detection[id][5][1], semantic_angles, False)
                     drone_detection[id][4] = normalize_angle((start_angle + end_angle)/2)
         
         self.DetectionCone(drone_detection)        
@@ -446,17 +444,17 @@ class SensorsAnalyzer(BrainModule):
             frame = list(detection[5])
             extended_frame0 = frame[0]
             if frame[0] > 1:
-                angle = self.FromRayToAngle(frame[0], semantic_angles) - 2 * resolution
+                angle = FromRayToAngle(frame[0], semantic_angles) - 2 * resolution
                 if angle < -math.pi * 2:
                     angle = -math.pi * 2
-                frame[0] = self.FromAngleToRay(angle, semantic_angles)
+                frame[0] = FromAngleToRay(angle, semantic_angles)
                 extended_frame0 = frame[0]
             extended_frame1 = frame[1]
             if frame[1] < 181:
-                angle = self.FromRayToAngle(frame[1], semantic_angles) + 2 * resolution
+                angle = FromRayToAngle(frame[1], semantic_angles) + 2 * resolution
                 if angle > math.pi * 2:
                     angle = math.pi * 2
-                frame[1] = self.FromAngleToRay(angle, semantic_angles)
+                frame[1] = FromAngleToRay(angle, semantic_angles)
                 extended_frame1 = frame[1]
 
             drone_detection[id][6]=[extended_frame0, extended_frame1]
@@ -502,7 +500,7 @@ class SensorsAnalyzer(BrainModule):
             VC = None
 
             for id, detection in drone_detection.items():
-                drone_index = self.FromAngleToRay(detection[4],semantic_angles)
+                drone_index = FromAngleToRay(detection[4],semantic_angles)
                 if frame[1] > frame[2]:
                     if drone_index >= frame[1] or drone_index <= frame[2]:
                         if VC is not None:
@@ -510,10 +508,22 @@ class SensorsAnalyzer(BrainModule):
                                 VC = [id, drone_index, detection[3], frame[0]]
                                 if id in cvc_list:
                                     VC.append("CVC")
+                                else:
+                                    VC.append("NCVC")
+                                if VC[2] < 50:
+                                    VC.append("TC")
+                                else:
+                                    VC.append("NTC")
                         else:
                             VC = [id, drone_index, detection[3], frame[0]]
                             if id in cvc_list:
                                 VC.append("CVC")
+                            else:
+                                VC.append("NCVC")
+                            if VC[2] < 50:
+                                VC.append("TC")
+                            else:
+                                VC.append("NTC")                           
 
                 else:
                     if drone_index >= frame[1] and drone_index <= frame[2]:
@@ -522,14 +532,28 @@ class SensorsAnalyzer(BrainModule):
                                 VC = [id, drone_index, detection[3], frame[0]]
                                 if id in cvc_list:
                                     VC.append("CVC")
+                                else:
+                                    VC.append("NCVC")
+                                
+                                if VC[2] < 50:
+                                    VC.append("TC")
+                                else:
+                                    VC.append("NTC")    
                         else:
                             VC = [id, drone_index, detection[3], frame[0]]
                             if id in cvc_list:
                                 VC.append("CVC")
+                            else:
+                                VC.append("NCVC")
+                            if VC[2] < 50:
+                                VC.append("TC")
+                            else:
+                                VC.append("NTC")
                 
             
             if VC is not None:
                 VC_list.append(VC)
+        
 
 
         return VC_list

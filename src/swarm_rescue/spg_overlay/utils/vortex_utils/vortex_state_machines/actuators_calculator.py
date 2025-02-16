@@ -6,30 +6,19 @@ from statemachine import StateMachine
 
 from spg_overlay.utils.vortex_utils.vortex_state_machines.brain_module import BrainModule
 from spg_overlay.utils.vortex_utils.PID import PID
+from spg_overlay.utils.vortex_utils.Potential_field import PotentialField
 
 class ActuatorsComputer(BrainModule):
-    # Stationary = State(initial=True)
-    # # FollowTheGap = State()
-    # # LeaveRoot = State()
-    # TakeRoot = State()
-    # # GetCloser = State()
-    # # TurnAround = State()
-    # # Centering = State()
-    # # FollowTheLeftMostGap = State()
-    # # SendMessage = State()
-    # # ChangeRole = State()
-
-    # agent_entrance = Stationary.to(TakeRoot) 
-    # agent_stop_at_root = TakeRoot.to(Stationary)
-
 
     def __init__(self,
                  signature,
-                 identifier
+                 identifier,
+                 lidar_angle
                  ):
         
         super().__init__(signature)
         self.identifier = identifier
+        self.lidar_angle = lidar_angle
 
         self.command = {
         "forward" : 0.0,
@@ -46,17 +35,23 @@ class ActuatorsComputer(BrainModule):
         "drone detection" : None,
         "drone behavior" : None,
         "gap dir" : None,
-        "neg gap dist" : None
+        "neg gap dist" : None,
+        "collision detection" : None
         }
 
-        self.leave_root_pid = PID(Kp=0.1, Ki=0.02, Kd=0.02, output_limits=(-0.2,0.2))
-        self.leave_root_pid.setpoint = 40
-        self.follower_pid = PID(Kp=0.1, Ki=0.02, Kd=0.02, output_limits=(-0.1,0.1))
-        self.follower_pid.setpoint = 0.0
+        self.potential_field = PotentialField()
+
+        self.leave_root_pid = PID(Kp=0.1, Ki=0.02, Kd=0.02, output_limits=(-0.1,0.1))
+        self.leave_root_pid.setpoint = 50
+        self.follower_pid_1 = PID(Kp=0.1, Ki=0.02, Kd=0.02, output_limits=(-0.1,0.1))
+        self.follower_pid_1.setpoint = 125
+        self.follower_pid_2 = PID(Kp=0.1, Ki=0.02, Kd=0.02, output_limits=(-0.1,0.1))
+        self.follower_pid_2.setpoint = 50
 
 
     def read_request(self, request):
         if request == "Need actuators values":
+            self.request(self.signature, "Module manager", "Need collision detection")
             self.request(self.signature, "Module manager", "Need behavior")
     
     def read_msg(self, title):
@@ -65,6 +60,9 @@ class ActuatorsComputer(BrainModule):
         if title == "drone behavior":
 
             self.command_selector(dico)
+            potential_field_command = self.potential_field.TotalRepulsivePotentialFieldVector(self.recieved_msgs["collision detection"][1], self.lidar_angle)
+            if potential_field_command is not None:
+                (self.command["forward"], self.command["lateral"]) = potential_field_command
             self.send(self.signature, "Module manager", "actuators values", self.command)
 
         elif title == "gps pos":
@@ -77,6 +75,9 @@ class ActuatorsComputer(BrainModule):
             pass
 
         elif title == "neg gap dist":
+            pass
+
+        elif title == "collision detection":
             pass
                      
     
@@ -116,30 +117,17 @@ class ActuatorsComputer(BrainModule):
         if drone_behaviors["Get closer"]:
             self.request(self.signature, "Module manager", "Need drone detection")
             if len(self.recieved_msgs["drone detection"][1]):
-                drone_dist = self.recieved_msgs["drone detection"][1][-1][2]
-                self.follower_control_command(drone_dist)
+                if self.recieved_msgs["drone detection"][1][-1][5] == "NTC":
+                    drone_dist = self.recieved_msgs["drone detection"][1][0][2]
+                    self.follower_control_command(drone_dist, 1)
+                
+                else:
+                    drone_dist = self.recieved_msgs["drone detection"][1][-1][2]
+                    self.follower_control_command(drone_dist, 2)
 
-
-
-
-        # if drone_behaviors["Waiting for agent"]:
-        #     self.request(self.signature, "Module manager", "Need drone detection")
-        #     if len(self.recieved_msgs["drone detection"][1]):
-        #         drone_dist = self.recieved_msgs["drone detection"][1][0][2]
-        #     self.stationary_command()
-
-
-    
-    # def computer(self, last_msg):
-    #     if self.command_memory == "Stationary":
-    #          self.stationary_command()
-    #     elif self.command_memory == "Take root":
-    #         gps_pos = last_msg[1][1]
-    #         self.take_root_control_command(gps_pos, (-230, 15))
-
-    
 
     def stationary_command(self):
+
         self.command["forward"] = 0.0
         self.command["lateral"] = 0.0
         self.command["rotation"] = 0.0
@@ -173,7 +161,7 @@ class ActuatorsComputer(BrainModule):
 
 
     def leave_root_control_command(self, drone_dist):
-        if drone_dist < 40:
+        if drone_dist < 50:
             if drone_dist - self.leave_root_pid.setpoint > 0:
                 self.command["forward"] = self.leave_root_pid(drone_dist)
                 self.command["lateral"] = 0.0
@@ -191,7 +179,7 @@ class ActuatorsComputer(BrainModule):
 
     def FollowTheGap(self, gap_analysis, gap_sel):
         
-        self.command["forward"] = 0.2
+        self.command["forward"] = 0.1
 
         if gap_analysis[gap_sel] > 0:
             self.command["rotation"] = (abs(gap_analysis[gap_sel])/math.pi) 
@@ -204,6 +192,7 @@ class ActuatorsComputer(BrainModule):
         else:
             pass
         self.send(self.signature, "Module manager", "move done")
+
 
 
     def CenterInIntersection(self, Obst_dist_ray):
@@ -245,28 +234,18 @@ class ActuatorsComputer(BrainModule):
             self.send(self.signature, "Module manager", "aligned")
 
     
-
-    def RushInTheGap(self):
-
-        forward = 0.5
-        lateral = 0.0
-        rotation = 0.0
-
-        return ((forward, lateral, rotation))
-    
-    def follower_control_command(self, drone_dist):
+    def follower_control_command(self, drone_dist, pid):
         self.command["forward"] = 0.0
         self.command["lateral"] = 0.0
         self.command["rotation"] = 0.0
 
-        if drone_dist < 40:
-            self.command["forward"] = 0.0
+        if pid==1:
+            self.command["forward"] = self.follower_pid_1(drone_dist)
             self.command["lateral"] = 0.0
             self.command["rotation"] = 0.0
-            self.send(self.signature, "Module manager", "too close")
 
-        else:
-            self.command["forward"] = -self.follower_pid(drone_dist)
+        elif pid==2:
+            self.command["forward"] = -self.follower_pid_2(drone_dist)
             self.command["lateral"] = 0.0
             self.command["rotation"] = 0.0
                 

@@ -47,9 +47,8 @@ class MyDroneVortex(BrainModule, DroneAbstract):
         "semantic data" : None
         }
         
-
         self.sensors_analyzer = SensorsAnalyzer(signature= "Sensors analyzer",identifier= self.identifier)
-        self.actuators_computer = ActuatorsComputer(signature= "Actuator computeur", identifier= self.identifier)
+        self.actuators_computer = ActuatorsComputer(signature= "Actuator computeur", identifier= self.identifier, lidar_angle=self.lidar_rays_angles())
         self.role = RoleState(signature= "Role", identifier= self.identifier)
         self.behavior = Behaviour(signature="Behaviour", identifier= self.identifier)
         self.situation = Situation(signature= "Situation", identifier= self.identifier)
@@ -72,7 +71,8 @@ class MyDroneVortex(BrainModule, DroneAbstract):
         "Need gps pos" : None,
         "Need drone detection" : None,
         "Need positive gap directions" : None,
-        "Need negative gap distance" : None
+        "Need negative gap distance" : None,
+        "Need collision detection" : None
         }
 
         self.recieved_msgs = {
@@ -137,6 +137,9 @@ class MyDroneVortex(BrainModule, DroneAbstract):
 
         elif request == "Need negative gap distance":
             self.send(self.signature, self.actuators_computer.signature, "neg gap dist", self.sensors_analyzer.analyzed_data["negative gap dist ray"])
+        
+        elif request == "Need collision detection":
+            self.send(self.signature, self.actuators_computer.signature, "collision detection", self.sensors_analyzer.analyzed_data["collision"])
 
 
     
