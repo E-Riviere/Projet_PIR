@@ -17,7 +17,7 @@ from spg_overlay.entities.drone_distance_sensors import DroneSemanticSensor
 from spg_overlay.entities.drone_distance_sensors import compute_ray_angles
 
 from spg_overlay.utils.vortex_utils.vortex_state_machines.brain_module import BrainModule
-from spg_overlay.utils.vortex_utils.vortex_state_machines.procedures_state_machine import Behaviour
+from spg_overlay.utils.vortex_utils.vortex_state_machines.procedures_state_machine_v2 import Behaviour
 from spg_overlay.utils.vortex_utils.vortex_state_machines.actuators_calculator import ActuatorsComputer
 from spg_overlay.utils.vortex_utils.vortex_state_machines.drone_role_state_machine import RoleState
 from spg_overlay.utils.vortex_utils.vortex_state_machines.drone_situation_state_machine import Situation
@@ -165,7 +165,7 @@ class MyDroneVortex(BrainModule, DroneAbstract):
             self.send(self.signature, self.behavior.signature, title)
         
         elif title == "set first drone role":
-            self.send(self.signature, self.role.signature, title, dico)
+            self.send(self.signature, self.role.signature, title)
 
         elif title == "set drone role":
             self.send(self.signature, self.role.signature, title)
@@ -240,8 +240,8 @@ class MyDroneVortex(BrainModule, DroneAbstract):
                 self.recieved_msgs["send come closer"] = None
                 self.send(self.signature, self.behavior.signature,"com send")
 
-            # if self.identifier == 1:
-            #     print(visual_com)
+            # if self.identifier == 0:
+            #     print(self.recieved_msgs["send more agent required"])
             return (visual_com)
         
 

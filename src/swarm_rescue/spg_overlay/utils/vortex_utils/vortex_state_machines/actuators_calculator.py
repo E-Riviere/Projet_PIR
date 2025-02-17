@@ -82,16 +82,18 @@ class ActuatorsComputer(BrainModule):
                      
     
     def command_selector(self, drone_behaviors):
+        # if self.identifier == 0:
+        #     print(drone_behaviors)
 
-        if drone_behaviors["Take root"]:
+        if drone_behaviors["action"] == "TakeRoot":
             self.request(self.signature, "Module manager", "Need gps pos")
             gps_pos = self.recieved_msgs["gps pos"][1]
             self.take_root_control_command(gps_pos, (-250, 15))
         
-        if drone_behaviors["Stationary"]:
+        if drone_behaviors["action"] == "Stationary":
             self.stationary_command()
         
-        if drone_behaviors["Leave root"]:
+        if drone_behaviors["action"] == "LeaveRoot":
             self.request(self.signature, "Module manager", "Need drone detection")
             if len(self.recieved_msgs["drone detection"][1]):
                 drone_dist = self.recieved_msgs["drone detection"][1][0][2]
@@ -99,22 +101,22 @@ class ActuatorsComputer(BrainModule):
             else:
                 pass
         
-        if  isinstance(drone_behaviors["Follow the gap"], list) and drone_behaviors["Follow the gap"][0] is True:
+        if  drone_behaviors["action"] == "FollowTheGap":
             self.request(self.signature, "Module manager", "Need positive gap directions")
             gap_dir = self.recieved_msgs["gap dir"][1]
-            self.FollowTheGap(gap_dir, drone_behaviors["Follow the gap"][1])
+            self.FollowTheGap(gap_dir, drone_behaviors["gap sel id"])
         
-        if drone_behaviors["Centering"]:
+        if drone_behaviors["action"] == "Centering":
             self.request(self.signature, "Module manager", "Need negative gap distance")
             neg_gap_dist = self.recieved_msgs["neg gap dist"][1]
             self.CenterInIntersection(neg_gap_dist)
 
-        if isinstance(drone_behaviors["Rotation to the left most gap"], list) and drone_behaviors["Rotation to the left most gap"][0] is True:
+        if drone_behaviors["action"] == "RotationToTheLeftMostGap":
             self.request(self.signature, "Module manager", "Need positive gap directions")
             gap_dir = self.recieved_msgs["gap dir"][1]
-            self.AlignWithTheGap(gap_dir, drone_behaviors["Rotation to the left most gap"][1])
+            self.AlignWithTheGap(gap_dir, drone_behaviors["gap sel id"])
         
-        if drone_behaviors["Get closer"]:
+        if drone_behaviors["action"] == "GetCloser":
             self.request(self.signature, "Module manager", "Need drone detection")
             if len(self.recieved_msgs["drone detection"][1]):
                 if self.recieved_msgs["drone detection"][1][-1][5] == "NTC":
@@ -161,25 +163,24 @@ class ActuatorsComputer(BrainModule):
 
 
     def leave_root_control_command(self, drone_dist):
-        if drone_dist < 50:
-            if drone_dist - self.leave_root_pid.setpoint > 0:
-                self.command["forward"] = self.leave_root_pid(drone_dist)
-                self.command["lateral"] = 0.0
-                self.command["rotation"] = 0.0
 
-            elif drone_dist - self.leave_root_pid.setpoint < 0:
-                self.command["forward"] = self.leave_root_pid(drone_dist)
-                self.command["lateral"] = 0.0
-                self.command["rotation"] = 0.0
-        else:
-            self.command["forward"] = 0.0
-            self.command["lateral"] = 0.0
-            self.command["rotation"] = 0.0           
+        self.command["forward"] = self.leave_root_pid(drone_dist)
+        self.command["lateral"] = 0.0
+        self.command["rotation"] = 0.0
+
+        # elif drone_dist - self.leave_root_pid.setpoint < 0:
+        #     self.command["forward"] = self.leave_root_pid(drone_dist)
+        #     self.command["lateral"] = 0.0
+        #     self.command["rotation"] = 0.0
+        # else:
+        #     self.command["forward"] = 0.0
+        #     self.command["lateral"] = 0.0
+        #     self.command["rotation"] = 0.0           
 
 
     def FollowTheGap(self, gap_analysis, gap_sel):
         
-        self.command["forward"] = 0.1
+        self.command["forward"] = 0.2
 
         if gap_analysis[gap_sel] > 0:
             self.command["rotation"] = (abs(gap_analysis[gap_sel])/math.pi) 
@@ -191,7 +192,7 @@ class ActuatorsComputer(BrainModule):
 
         else:
             pass
-        self.send(self.signature, "Module manager", "move done")
+        # self.send(self.signature, "Module manager", "move done")
 
 
 

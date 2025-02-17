@@ -42,8 +42,6 @@ class Situation(BrainModule):
         "Exploration possible" : False,
         "Exploration completed" : False,
         "Visual connectivity" : [None],
-        "Critical visual connectivity" : False,
-        "Too close" : False,
         "All branch explored" : False,
         "Collision" : False
         }
