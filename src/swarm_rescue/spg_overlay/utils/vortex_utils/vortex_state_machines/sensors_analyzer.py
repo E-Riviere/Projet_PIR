@@ -461,37 +461,39 @@ class SensorsAnalyzer(BrainModule):
 
 
     def CriticalVisualConnexion(self, lidar_data, drone_detection):
-        CVC = []
+        CVC = {"CVC obst":[], "CVC dist":[]}
 
         for id, detection in drone_detection.items():
             drone_dist = detection[3]
             detection_cone = detection[6]
-            obst = False
-            cvc = False
+            cvc_obst= False
+            cvc_dist = False
 
             if drone_dist > 150:
-                cvc = True
+                cvc_dist = True
 
             if detection_cone[0] > detection_cone[1]:
                 for i in range(detection_cone[0], 181 + 1):
                     if lidar_data[i - 1] < drone_dist:
-                        obst = True
+                        cvc_obst = True
                 for i in range(1, detection_cone[1]):
                     if lidar_data[i - 1] < drone_dist:
-                        obst = True
+                        cvc_obst = True
 
             else:
                 for i in range(detection_cone[0], detection_cone[1] + 1):
                     if lidar_data[i - 1] < drone_dist:
-                        obst = True
+                        cvc_obst = True
 
-            if obst is True or cvc is True:
-                CVC.append(id)
+            if cvc_obst is True:
+                CVC["CVC obst"].append(id)
+            if cvc_dist is True:
+                CVC["CVC dist"].append(id)
 
         return(CVC)
 
 
-    def visual_connectvity_list(self, gap_detection_memory, drone_detection, cvc_list):
+    def visual_connectvity_list(self, gap_detection_memory, drone_detection, cvc_dict):
         
         semantic_angles = compute_ray_angles(2*math.pi, 181)
         VC_list = []
@@ -506,20 +508,29 @@ class SensorsAnalyzer(BrainModule):
                         if VC is not None:
                             if detection[3] < VC[2]:
                                 VC = [id, drone_index, detection[3], frame[0]]
-                                if id in cvc_list:
-                                    VC.append("CVC")
+                                if id in cvc_dict["CVC obst"]:
+                                    VC.append("CVC obst")
                                 else:
-                                    VC.append("NCVC")
+                                    VC.append("NCVC obst")
+                                if id in cvc_dict["CVC dist"]:
+                                    VC.append("CVC dist")
+                                else:
+                                    VC.append("NCVC dist")
+
                                 if VC[2] < 50:
                                     VC.append("TC")
                                 else:
                                     VC.append("NTC")
                         else:
                             VC = [id, drone_index, detection[3], frame[0]]
-                            if id in cvc_list:
-                                VC.append("CVC")
+                            if id in cvc_dict["CVC obst"]:
+                                VC.append("CVC obst")
                             else:
-                                VC.append("NCVC")
+                                VC.append("NCVC obst")
+                            if id in cvc_dict["CVC dist"]:
+                                VC.append("CVC dist")
+                            else:
+                                VC.append("NCVC dist")
                             if VC[2] < 50:
                                 VC.append("TC")
                             else:
@@ -530,10 +541,14 @@ class SensorsAnalyzer(BrainModule):
                         if VC is not None:
                             if detection[3] < VC[2]:
                                 VC = [id, drone_index, detection[3], frame[0]]
-                                if id in cvc_list:
-                                    VC.append("CVC")
+                                if id in cvc_dict["CVC obst"]:
+                                    VC.append("CVC obst")
                                 else:
-                                    VC.append("NCVC")
+                                    VC.append("NCVC obst")
+                                if id in cvc_dict["CVC dist"]:
+                                    VC.append("CVC dist")
+                                else:
+                                    VC.append("NCVC dist")
                                 
                                 if VC[2] < 50:
                                     VC.append("TC")
@@ -541,10 +556,15 @@ class SensorsAnalyzer(BrainModule):
                                     VC.append("NTC")    
                         else:
                             VC = [id, drone_index, detection[3], frame[0]]
-                            if id in cvc_list:
-                                VC.append("CVC")
+                            if id in cvc_dict["CVC obst"]:
+                                VC.append("CVC obst")
                             else:
-                                VC.append("NCVC")
+                                VC.append("NCVC obst")
+                            if id in cvc_dict["CVC dist"]:
+                                VC.append("CVC dist")
+                            else:
+                                VC.append("NCVC dist")
+
                             if VC[2] < 50:
                                 VC.append("TC")
                             else:
