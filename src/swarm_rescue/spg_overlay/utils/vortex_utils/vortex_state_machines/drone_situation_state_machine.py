@@ -35,7 +35,7 @@ class Situation(BrainModule):
         "Stock" : True,
         "Root": False,
         "Intersection" : False,
-        "Dead-end" : False,
+        "Dead end" : False,
         "Open space" : False,
         "Corridor" : False,
         "Curve" : False,

@@ -119,7 +119,7 @@ class ActuatorsComputer(BrainModule):
         if drone_behaviors["action"] == "GetCloser":
             self.request(self.signature, "Module manager", "Need drone detection")
             if len(self.recieved_msgs["drone detection"][1]):
-                if self.recieved_msgs["drone detection"][1][-1][5] == "NTC":
+                if self.recieved_msgs["drone detection"][1][-1][6] == "NTC":
                     drone_dist = self.recieved_msgs["drone detection"][1][0][2]
                     self.follower_control_command(drone_dist, 1)
                 

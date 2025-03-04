@@ -17,7 +17,7 @@ from spg_overlay.entities.drone_distance_sensors import DroneSemanticSensor
 from spg_overlay.entities.drone_distance_sensors import compute_ray_angles
 
 from spg_overlay.utils.vortex_utils.vortex_state_machines.brain_module import BrainModule
-from spg_overlay.utils.vortex_utils.vortex_state_machines.procedures_state_machine_v2 import Behaviour
+from spg_overlay.utils.vortex_utils.vortex_state_machines.procedures_state_machine_v3 import Behavior
 from spg_overlay.utils.vortex_utils.vortex_state_machines.actuators_calculator import ActuatorsComputer
 from spg_overlay.utils.vortex_utils.vortex_state_machines.drone_role_state_machine import RoleState
 from spg_overlay.utils.vortex_utils.vortex_state_machines.drone_situation_state_machine import Situation
@@ -50,7 +50,7 @@ class MyDroneVortex(BrainModule, DroneAbstract):
         self.sensors_analyzer = SensorsAnalyzer(signature= "Sensors analyzer",identifier= self.identifier)
         self.actuators_computer = ActuatorsComputer(signature= "Actuator computeur", identifier= self.identifier, lidar_angle=self.lidar_rays_angles())
         self.role = RoleState(signature= "Role", identifier= self.identifier)
-        self.behavior = Behaviour(signature="Behaviour", identifier= self.identifier)
+        self.behavior = Behavior(signature="Behaviour", identifier= self.identifier)
         self.situation = Situation(signature= "Situation", identifier= self.identifier)
 
         self.create_module_network(self.sensors_analyzer,
@@ -224,7 +224,7 @@ class MyDroneVortex(BrainModule, DroneAbstract):
                 visual_com["visual indications"].append("white")
             if self.situation.drone_situation["Intersection"]:
                 visual_com["visual indications"].append("yellow")
-            if self.situation.drone_situation["Dead-end"]:
+            if self.situation.drone_situation["Dead end"]:
                 visual_com["visual indications"].append("black")
             if self.role.actual_role["Leader"]:
                 visual_com["visual indications"].append("blue")

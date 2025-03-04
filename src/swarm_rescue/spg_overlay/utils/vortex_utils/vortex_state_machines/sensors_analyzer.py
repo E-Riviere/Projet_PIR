@@ -115,9 +115,9 @@ class SensorsAnalyzer(BrainModule):
     #Collision
     def CollideDetection(self, lidar_data):
         Obst = []
-        if min(lidar_data) < 20:
+        if min(lidar_data) < 15:
             for i, dist in enumerate(lidar_data):
-                if dist < 20:
+                if dist < 15:
                     Obst.append([i, dist])
             return Obst
 
@@ -414,7 +414,7 @@ class SensorsAnalyzer(BrainModule):
             drone_detection[str(id)][2].append(float(drone_dist_ray[i]))
 
         for id in reversed(list(drone_detection.keys())):
-            if len(drone_detection[id][0]) < 4:
+            if len(drone_detection[id][0]) < 3:
                 del(drone_detection[id])
 
         for id in drone_detection.keys():
@@ -469,7 +469,7 @@ class SensorsAnalyzer(BrainModule):
             cvc_obst= False
             cvc_dist = False
 
-            if drone_dist > 150:
+            if drone_dist > 130:
                 cvc_dist = True
 
             if detection_cone[0] > detection_cone[1]:
