@@ -126,6 +126,11 @@ class ActuatorsComputer(BrainModule):
                 else:
                     drone_dist = self.recieved_msgs["drone detection"][1][-1][2]
                     self.follower_control_command(drone_dist, 2)
+        
+        if drone_behaviors["action"] == "TurnAround":
+            self.request(self.signature, "Module manager", "Need positive gap directions")
+            gap_dir = self.recieved_msgs["gap dir"][1]
+            self.AlignWithTheGap(gap_dir, drone_behaviors["gap sel id"])
 
 
     def stationary_command(self):

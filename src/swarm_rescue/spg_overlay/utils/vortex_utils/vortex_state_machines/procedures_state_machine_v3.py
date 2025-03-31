@@ -229,6 +229,8 @@ class Behavior(BrainModule, StateMachine):
         elif drone_situation["Dead end"]:
             if self.current_state == Behavior.LeaderContinuExploration:
                 self.dead_end_procedure()
+            elif self.current_state == Behavior.BranchReconfiguration:
+                self.follower_come_closer()
 
         if self.identifier == 0 :
             print(drone_situation, self.recieved_msgs["drone role"][1])
@@ -307,6 +309,7 @@ class Behavior(BrainModule, StateMachine):
             elif self.sm_action.current_state == sm.leader_manage_intersection_set.RotationToTheLeftMostGap:
                 if (self.recieved_msgs["aligned"] is not None
                     and drone_situation["Visual connectivity"][1][0][6] == "TC"):
+                    self.recieved_msgs["aligned"] = None
                     self.sm_action.leader_manage_intersection()
             elif self.sm_action.current_state == sm.leader_manage_intersection_set.FollowTheGap:
                 if drone_situation["Corridor"]:
@@ -337,7 +340,7 @@ class Behavior(BrainModule, StateMachine):
             elif self.sm_action.current_state == sm.agent_called_set.Stationary:
                 if self.visual_msg == "purple":
                     self.behavior_determination(drone_situation)
-            
+        
 
         elif self.current_state == Behavior.FollowerComeCloser:
             if self.sm_action.current_state == sm.follower_come_closer_set.Stationary:
@@ -349,10 +352,8 @@ class Behavior(BrainModule, StateMachine):
                 if self.recieved_msgs["aligned"] is not None:
                     self.sm_action.follower_come_closer()
             elif self.sm_action.current_state == sm.follower_come_closer_set.GetCloser:
-                print(drone_situation["Visual connectivity"])
                 pass
             
-
 
         elif self.current_state == Behavior.RootFollowerComeCloser:
             if self.sm_action.current_state == sm.root_follower_come_closer_set.Stationary:
@@ -388,7 +389,20 @@ class Behavior(BrainModule, StateMachine):
 
 
         elif self.current_state == Behavior.BranchReconfiguration:
-            self.sm_action.branch_reconfiguration()
+            if self.sm_action.current_state == sm.branch_reconfiguration_set.Stationary:
+                self.sm_action.branch_reconfiguration()
+            elif self.sm_action.current_state == sm.branch_reconfiguration_set.ChangeRole:
+                if self.recieved_msgs["drone role set"] is not None:
+                    self.sm_action.branch_reconfiguration()
+            elif self.sm_action.current_state == sm.branch_reconfiguration_set.TurnAround:
+                if self.recieved_msgs["aligned"] is not None:
+                    self.recieved_msgs["aligned"] = None
+                    self.sm_action.branch_reconfiguration()
+            elif self.sm_action.current_state == sm.branch_reconfiguration_set.Sendmsg:
+                if self.recieved_msgs["com send"] is not None:
+                    self.sm_action.branch_reconfiguration()
+                    self.behavior_determination(drone_situation)
+            
 
         # if self.identifier ==0:
         #     print(self.actions.drone_action)
@@ -415,6 +429,10 @@ class Behavior(BrainModule, StateMachine):
                     if com["id"] in id_vc:
                         if len(com["visual msgs"])>0 and "purple" in com["visual msgs"]:
                             self.visual_msg = "purple"
+                            print(self.identifier, self.visual_msg)
+
+                        if len(com["visual msgs"])>0 and "red" in com["visual msgs"]:
+                            self.visual_msg = "red"
                             print(self.identifier, self.visual_msg)
 
 

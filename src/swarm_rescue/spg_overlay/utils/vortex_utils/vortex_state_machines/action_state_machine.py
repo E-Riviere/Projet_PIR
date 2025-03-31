@@ -27,7 +27,8 @@ class first_agent_start_set(StateMachine):
     first_agent_start = (Idle.to(TakeRoot)|
                         TakeRoot.to(ChangeRole)|
                         ChangeRole.to(ChangeSituation)|
-                        ChangeSituation.to(Stationary)
+                        ChangeSituation.to(Stationary)|
+                        Stationary.to.itself()
                         )
     
     def __init__(self, behavior):
@@ -309,8 +310,15 @@ class interruption_set(StateMachine):
 
 class branch_reconfiguration_set(StateMachine):
     Stationary = State(initial=True)
+    Sendmsg = State()
+    ChangeRole = State()
+    TurnAround = State()
+    
 
-    branch_reconfiguration = Stationary.to.itself()
+    branch_reconfiguration = (Stationary.to(ChangeRole)|
+                              ChangeRole.to(TurnAround)|
+                              TurnAround.to(Sendmsg)|
+                              Sendmsg.to(Stationary))
                             
     
     def __init__(self, behavior):
@@ -322,6 +330,14 @@ class branch_reconfiguration_set(StateMachine):
         if state.id != "Stationary":
             self.drone_action["action"] = state.id
 
+    def on_enter_ChangeRole(self):
+        self.behavior.send(self.behavior.signature, "Module manager", "set drone role")
+
+    def on_enter_TurnAround(self):
+        self.drone_action["gap sel id"] = 0
+    
+    def on_enter_Sendmsg(self):
+        self.behavior.send(self.behavior.signature, "Module manager", "send branch reconfiguration")
 
     
 

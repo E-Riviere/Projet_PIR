@@ -231,6 +231,8 @@ class MyDroneVortex(BrainModule, DroneAbstract):
 
             if self.recieved_msgs["send branch reconfiguration"]:
                 visual_com["visual msgs"].append("red")
+                self.recieved_msgs["send branch reconfiguration"] = None
+                self.send(self.signature, self.behavior.signature,"com send")
             if self.recieved_msgs["send more agent required"]:
                 visual_com["visual msgs"].append(["green", self.identifier + 1])
                 self.recieved_msgs["send more agent required"] = None
