@@ -256,87 +256,97 @@ class Behavior(BrainModule, StateMachine):
         
         elif self.current_state == Behavior.FirstDroneStart:
             if self.sm_action.current_state == sm.first_agent_start_set.Idle:
-                self.sm_action.first_agent_start()
-            if self.recieved_msgs["take root done"] is not None:
-                self.sm_action.first_agent_start()
-            if self.recieved_msgs["drone role set"] is not None:
-                self.sm_action.first_agent_start()
-            if self.recieved_msgs["situation changed to root"] is not None:
-                self.sm_action.first_agent_start()
-                self.behavior_determination(drone_situation)
+                self.sm_action.take_root()
+            elif self.sm_action.current_state == sm.first_agent_start_set.TakeRoot:
+                if self.recieved_msgs["take root done"] is not None:
+                    self.sm_action.change_role()
+            elif self.sm_action.current_state == sm.first_agent_start_set.ChangeRole:
+                if self.recieved_msgs["drone role set"] is not None:
+                    self.sm_action.change_situation()
+            elif self.sm_action.current_state == sm.first_agent_start_set.ChangeSituation:
+                if self.recieved_msgs["situation changed to root"] is not None:
+                    self.sm_action.stationary()
+                    self.behavior_determination(drone_situation)
             
 
         elif self.current_state == Behavior.LeaderLeaveTheRoot:
             if self.sm_action.current_state == sm.leader_start_set.Stationary:
-                self.sm_action.leader_start()
-            if drone_situation["Visual connectivity"][1][0][6] == "TC":
-                if self.sm_action.current_state == sm.leader_start_set.LeaveRoot:
-                    pass
+                if drone_situation["Visual connectivity"][1][0][6] == "TC":
+                    self.sm_action.leave_root()
                 else:
-                    self.sm_action.leader_start()
-            if self.visual_indication == "white":
-                self.sm_action.leader_start()
-            if self.recieved_msgs["situation changed"]:
-                self.sm_action.leader_start()
-                self.behavior_determination(drone_situation)
+                    self.sm_action.send_msg()
+            elif self.sm_action.current_state == sm.leader_start_set.Sendmsg:
+                if self.recieved_msgs["com send"] is not None:
+                    self.sm_action.stationary()
+            elif self.sm_action.current_state == sm.leader_start_set.LeaveRoot:
+                if self.visual_indication == "white":
+                    self.sm_action.change_situation()
+            elif self.sm_action.current_state == sm.leader_start_set.ChangeSituation:
+                if self.recieved_msgs["situation changed"]:
+                    self.sm_action.stationary()
+                    self.behavior_determination(drone_situation)
 
 
         elif self.current_state == Behavior.LeaderContinuExploration:
             if self.sm_action.current_state == sm.leader_explore_branch_set.Stationary:
-                self.sm_action.leader_explore_branch()
+                self.sm_action.follow_the_gap()
 
             elif self.sm_action.current_state == sm.leader_explore_branch_set.FollowTheGap:
                 if isinstance(drone_situation["Intersection"], list):
-                    self.sm_action.leader_explore_branch()
+                    self.sm_action.stationary()
                     self.behavior_determination(drone_situation)
                 elif drone_situation["Visual connectivity"][1][0][5] == "CVC dist":
-                    self.sm_action.leader_explore_branch()
+                    self.sm_action.stationary()
                     self.behavior_determination(drone_situation)
                 elif drone_situation["Dead end"] == True:
-                    self.sm_action.leader_explore_branch()
+                    self.sm_action.stationary()
                     self.behavior_determination(drone_situation)
 
 
         elif self.current_state == Behavior.LeaderManageIntersection:
             if self.sm_action.current_state == sm.leader_manage_intersection_set.Stationary:
-                self.sm_action.leader_manage_intersection()
+                self.sm_action.Sendmsg()
             elif self.sm_action.current_state == sm.leader_manage_intersection_set.Sendmsg:
                 if self.recieved_msgs["com send"] is not None:
-                    self.sm_action.leader_manage_intersection()
+                    self.sm_action.centering()
             elif self.sm_action.current_state == sm.leader_manage_intersection_set.Centering:
                 if self.recieved_msgs["centered"] is not None:
-                    self.sm_action.leader_manage_intersection()
+                    self.sm_action.rotation_to_the_left_most_gap()
             elif self.sm_action.current_state == sm.leader_manage_intersection_set.RotationToTheLeftMostGap:
                 if (self.recieved_msgs["aligned"] is not None
                     and drone_situation["Visual connectivity"][1][0][6] == "TC"):
                     self.recieved_msgs["aligned"] = None
-                    self.sm_action.leader_manage_intersection()
+                    self.sm_action.follow_the_gap()
             elif self.sm_action.current_state == sm.leader_manage_intersection_set.FollowTheGap:
                 if drone_situation["Corridor"]:
-                    self.sm_action.leader_manage_intersection()
+                    self.sm_action.stationary()
                     self.behavior_determination(drone_situation)
         
         elif self.current_state == Behavior.LeaderWaiting:
             if self.sm_action.current_state == sm.leader_waiting_set.Stationary:
-                self.sm_action.leader_waiting()
-            elif self.sm_action.current_state == sm.leader_waiting_set.Sendmsg:
                 if drone_situation["Visual connectivity"][1][0][6] == "TC":
-                    self.sm_action.leader_waiting()
+                    self.sm_action.stationary
                     self.behavior_determination(drone_situation)
+                else:
+                    self.sm_action.send_msg()
+    
+            elif self.sm_action.current_state == sm.leader_waiting_set.Sendmsg:
+                if self.recieved_msgs["com send"] is not None:
+                    self.sm_action.stationary()
     
 
         elif self.current_state == Behavior.CalledToEnterTheEnvironment:
             if self.sm_action.current_state == sm.agent_called_set.Idle:
-                self.sm_action.agent_called()
+                self.sm_action.take_root()
             elif self.sm_action.current_state == sm.agent_called_set.TakeRoot:
                 if self.recieved_msgs["take root done"] is not None:
-                    self.sm_action.agent_called()
+                    self.sm_action.change_role()
             elif self.sm_action.current_state == sm.agent_called_set.ChangeRole:
                 if self.recieved_msgs["drone role set"] is not None:
-                    self.sm_action.agent_called()
+                    self.sm_action.change_situation()
             elif self.sm_action.current_state == sm.agent_called_set.ChangeSituation:
                 if self.recieved_msgs["situation changed to root"] is not None:
-                    self.sm_action.agent_called()
+                    self.sm_action.stationary()
             elif self.sm_action.current_state == sm.agent_called_set.Stationary:
                 if self.visual_msg == "purple":
                     self.behavior_determination(drone_situation)
@@ -357,50 +367,53 @@ class Behavior(BrainModule, StateMachine):
 
         elif self.current_state == Behavior.RootFollowerComeCloser:
             if self.sm_action.current_state == sm.root_follower_come_closer_set.Stationary:
-                self.sm_action.root_follower_come_closer()
-            if self.sm_action.current_state == sm.root_follower_come_closer_set.Sendmsg:
                 if drone_situation["Visual connectivity"][1][0][6] == "TC":
-                    self.sm_action.root_follower_come_closer()
+                    self.sm_action.leave_root()
+                else:
+                    self.sm_action.send_msg()
+            elif self.sm_action.current_state == sm.root_follower_come_closer_set.Sendmsg:
+                if self.recieved_msgs["com send"] is not None:
+                    self.sm_action.stationary()
             elif self.sm_action.current_state == sm.root_follower_come_closer_set.LeaveRoot:
                 if self.visual_indication == "white":
-                    self.sm_action.root_follower_come_closer()
+                    self.sm_action.change_situation()
             elif self.sm_action.current_state == sm.root_follower_come_closer_set.ChangeSituation:
                 if self.recieved_msgs["situation changed"]:
-                    self.sm_action.root_follower_come_closer()
+                    self.sm_action.get_closer()
             elif self.sm_action.current_state == sm.root_follower_come_closer_set.GetCloser:
                 if isinstance(drone_situation["Intersection"],list):
-                    self.sm_action.root_follower_come_closer()
+                    self.sm_action.stationary()
                     self.behavior_determination(drone_situation)
 
 
         elif self.current_state == Behavior.FollowerManageIntersection:
             if self.sm_action.current_state == sm.follower_manage_intersection_set.Stationary:
                 if self.visual_msg == "purple":
-                    self.sm_action.follower_manage_intersection()
+                    self.sm_action.stationary()
                     self.behavior_determination(drone_situation)
                 else:
-                    self.sm_action.follower_manage_intersection()
+                    self.sm_action.centering()
             elif self.sm_action.current_state == sm.follower_manage_intersection_set.Centering:
                 if self.recieved_msgs["centered"] is not None:
-                    self.sm_action.follower_manage_intersection()
+                    self.sm_action.stationary()
                 if self.visual_msg == "purple":
-                    self.sm_action.follower_manage_intersection()
+                    self.sm_action.stationary()
                     self.behavior_determination(drone_situation)
 
 
         elif self.current_state == Behavior.BranchReconfiguration:
             if self.sm_action.current_state == sm.branch_reconfiguration_set.Stationary:
-                self.sm_action.branch_reconfiguration()
+                self.sm_action.change_role()
             elif self.sm_action.current_state == sm.branch_reconfiguration_set.ChangeRole:
                 if self.recieved_msgs["drone role set"] is not None:
-                    self.sm_action.branch_reconfiguration()
+                    self.sm_action.turn_around()
             elif self.sm_action.current_state == sm.branch_reconfiguration_set.TurnAround:
                 if self.recieved_msgs["aligned"] is not None:
                     self.recieved_msgs["aligned"] = None
-                    self.sm_action.branch_reconfiguration()
+                    self.sm_action.send_msg()
             elif self.sm_action.current_state == sm.branch_reconfiguration_set.Sendmsg:
                 if self.recieved_msgs["com send"] is not None:
-                    self.sm_action.branch_reconfiguration()
+                    self.sm_action.stationary()
                     self.behavior_determination(drone_situation)
             
 

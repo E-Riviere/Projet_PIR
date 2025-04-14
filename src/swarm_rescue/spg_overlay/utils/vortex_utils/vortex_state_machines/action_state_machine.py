@@ -24,12 +24,17 @@ class first_agent_start_set(StateMachine):
     ChangeSituation = State()
     Stationary = State()
 
-    first_agent_start = (Idle.to(TakeRoot)|
+    """first_agent_start = (Idle.to(TakeRoot)|
                         TakeRoot.to(ChangeRole)|
                         ChangeRole.to(ChangeSituation)|
                         ChangeSituation.to(Stationary)|
                         Stationary.to.itself()
-                        )
+                        )"""
+    
+    take_root = Idle.to(TakeRoot)
+    change_role = TakeRoot.to(ChangeRole)
+    change_situation = ChangeRole.to(ChangeSituation)
+    stationary = (ChangeSituation.to(Stationary) | Stationary.to.itself())
     
     def __init__(self, behavior):
         super().__init__()
@@ -53,11 +58,18 @@ class leader_start_set(StateMachine):
     LeaveRoot = State()
     ChangeSituation = State()
 
-    leader_start = (Stationary.to(Sendmsg)|
+    """leader_start = (Stationary.to(Sendmsg)|
                     Sendmsg.to(LeaveRoot)|
                     LeaveRoot.to(ChangeSituation)|
                     ChangeSituation.to(Stationary)
-                    )
+                    )"""
+    
+    send_msg = Stationary.to(Sendmsg)
+    leave_root = Sendmsg.to(LeaveRoot)
+    change_situation = LeaveRoot.to(ChangeSituation)
+    stationary = (ChangeSituation.to(Stationary) | Stationary.to.itself() | Sendmsg.to(Stationary))
+    
+
     
     def __init__(self, behavior):
         super().__init__()
@@ -79,9 +91,11 @@ class leader_explore_branch_set(StateMachine):
     Stationary = State(initial=True)
     FollowTheGap = State()
 
-    leader_explore_branch = (Stationary.to(FollowTheGap)|
+    """leader_explore_branch = (Stationary.to(FollowTheGap)|
                             FollowTheGap.to(Stationary)
-                            )
+                            )"""
+    follow_the_gap = Stationary.to(FollowTheGap)
+    stationary = FollowTheGap.to(Stationary)
     
     def __init__(self, behavior):
         super().__init__()
@@ -106,12 +120,17 @@ class leader_manage_intersection_set(StateMachine):
     RotationToTheLeftMostGap = State()
     FollowTheGap = State()
 
-    leader_manage_intersection = (Stationary.to(Sendmsg)|
+    """leader_manage_intersection = (Stationary.to(Sendmsg)|
                                         Sendmsg.to(Centering)|
                                         Centering.to(RotationToTheLeftMostGap)|
                                         RotationToTheLeftMostGap.to(FollowTheGap)|
                                         FollowTheGap.to(Stationary)
-                                        )
+                                        )"""
+    send_msg = Stationary.to(Sendmsg)
+    centering = Sendmsg.to(Centering)
+    rotation_to_the_left_most_gap = Centering.to(RotationToTheLeftMostGap)
+    follow_the_gap = RotationToTheLeftMostGap.to(FollowTheGap)
+    stationary = FollowTheGap.to(Stationary)
     
     def __init__(self, behavior):
         super().__init__()
@@ -139,8 +158,11 @@ class leader_waiting_set(StateMachine):
     Stationary = State(initial=True)
     Sendmsg = State()
 
-    leader_waiting = (Stationary.to(Sendmsg)|
-                      Sendmsg.to(Stationary))
+    """leader_waiting = (Stationary.to(Sendmsg)|
+                      Sendmsg.to(Stationary))"""
+    
+    send_msg = Stationary.to(Sendmsg)
+    stationary = (Sendmsg.to(Stationary) | Stationary.to.itself())
 
     def __init__(self, behavior):
         super().__init__()
@@ -162,11 +184,16 @@ class agent_called_set(StateMachine):
     ChangeSituation = State()
     Stationary = State()
 
-    agent_called = (Idle.to(TakeRoot)|
+    """agent_called = (Idle.to(TakeRoot)|
                     TakeRoot.to(ChangeRole)|
                     ChangeRole.to(ChangeSituation)|
                     ChangeSituation.to(Stationary)  
-                    )
+                    )"""
+    
+    take_root = Idle.to(TakeRoot)
+    change_role = TakeRoot.to(ChangeRole)
+    change_situation = ChangeRole.to(ChangeSituation)
+    stationary = ChangeSituation.to(Stationary)
     
     def __init__(self, behavior):
         super().__init__()
@@ -191,12 +218,18 @@ class root_follower_come_closer_set(StateMachine):
     ChangeSituation = State()
     GetCloser = State()
 
-    root_follower_come_closer = (Stationary.to(Sendmsg)|
+    """root_follower_come_closer = (Stationary.to(Sendmsg)|
                                         Sendmsg.to(LeaveRoot)|
                                         LeaveRoot.to(ChangeSituation)|
                                         ChangeSituation.to(GetCloser)|
                                         GetCloser.to(Stationary)
-                                    )
+                                    )"""
+    
+    send_msg = Stationary.to(Sendmsg)
+    leave_root = Sendmsg.to(LeaveRoot)
+    change_situation = LeaveRoot.to(ChangeSituation)
+    get_closer = ChangeSituation.to(GetCloser)
+    stationary = (GetCloser.to(Stationary) | Stationary.to.itself() | Sendmsg.to(Stationary))
 
     def __init__(self, behavior):
         super().__init__()
@@ -220,14 +253,19 @@ class follower_come_closer_set(StateMachine):
     GetCloser = State()
     RotationToTheLeftMostGap = State()
 
-    follower_come_closer = (Stationary.to(Sendmsg, unless ="flagcond")|
+    """follower_come_closer = (Stationary.to(Sendmsg, unless ="flagcond")|
                             Sendmsg.to(Stationary)|
                             Stationary.to(GetCloser, unless = "inter")|
                             Stationary.to.itself(on = "stat", unless = "tooclose")|
                             GetCloser.to(Stationary)|
                             Stationary.to(RotationToTheLeftMostGap, cond = "tooclose")|
                             RotationToTheLeftMostGap.to(GetCloser)|
-                            GetCloser.to(Stationary))
+                            GetCloser.to(Stationary))"""
+    
+    send_msg = Stationary.to(Sendmsg, unless ="flagcond")
+    get_closer = Stationary.to(GetCloser)
+    rotation_to_the_left_most_gap = Stationary.to(RotationToTheLeftMostGap, cond = "tooclose")
+    stationary = (GetCloser.to(Stationary) | Stationary.to.itself(on = "stat", unless = "tooclose") | Sendmsg.to(Stationary))
     
     def __init__(self, behavior):
         super().__init__()
@@ -266,9 +304,12 @@ class follower_manage_intersection_set(StateMachine):
     Stationary = State(initial=True)
     Centering = State()
 
-    follower_manage_intersection = (Stationary.to(Centering, unless="wait")|
+    """follower_manage_intersection = (Stationary.to(Centering, unless="wait")|
                                     Centering.to(Stationary)|
-                                    Stationary.to.itself(on = "stat"))
+                                    Stationary.to.itself(on = "stat"))"""
+    
+    centering = Stationary.to(Centering, unless="wait")
+    stationary = (Centering.to(Stationary) | Stationary.to.itself(on = "stat"))
 
     def __init__(self, behavior):
         super().__init__()
@@ -315,10 +356,15 @@ class branch_reconfiguration_set(StateMachine):
     TurnAround = State()
     
 
-    branch_reconfiguration = (Stationary.to(ChangeRole)|
+    """branch_reconfiguration = (Stationary.to(ChangeRole)|
                               ChangeRole.to(TurnAround)|
                               TurnAround.to(Sendmsg)|
-                              Sendmsg.to(Stationary))
+                              Sendmsg.to(Stationary))"""
+    
+    change_role = Stationary.to(ChangeRole)
+    turn_around = ChangeRole.to(TurnAround)
+    send_msg = TurnAround.to(Sendmsg)
+    stationary = (Sendmsg.to(Stationary) | Stationary.to.itself() | ChangeRole.to(Stationary))
                             
     
     def __init__(self, behavior):
