@@ -18,6 +18,7 @@ class Behavior(BrainModule, StateMachine):
     FollowerManageIntersection = State()
     BranchReconfiguration = State()
     BehaviorInterruption = State()
+    FollowerWaiting = State()
 
     start_first_drone = DroneWaitingInStock.to(FirstDroneStart, cond = ["first_drone_id"])
 
@@ -238,8 +239,6 @@ class Behavior(BrainModule, StateMachine):
 
     def action_determination(self, drone_situation):
 
-
-
         if (len(drone_situation["Visual connectivity"])>1
             and drone_situation["Visual connectivity"][1][0][4] == "CVC obst"
             and not drone_situation["Root"]):
@@ -271,10 +270,12 @@ class Behavior(BrainModule, StateMachine):
 
         elif self.current_state == Behavior.LeaderLeaveTheRoot:
             if self.sm_action.current_state == sm.leader_start_set.Stationary:
-                if drone_situation["Visual connectivity"][1][0][6] == "TC":
+                if self.recieved_msgs["com send"] is None:
+                    self.sm_action.send_msg()
+                elif drone_situation["Visual connectivity"][1][0][6] == "TC":
                     self.sm_action.leave_root()
                 else:
-                    self.sm_action.send_msg()
+                    self.sm_action.stationary()
             elif self.sm_action.current_state == sm.leader_start_set.Sendmsg:
                 if self.recieved_msgs["com send"] is not None:
                     self.sm_action.stationary()
@@ -284,13 +285,13 @@ class Behavior(BrainModule, StateMachine):
             elif self.sm_action.current_state == sm.leader_start_set.ChangeSituation:
                 if self.recieved_msgs["situation changed"]:
                     self.sm_action.stationary()
+                    self.recieved_msgs["com send"] = None
                     self.behavior_determination(drone_situation)
 
 
         elif self.current_state == Behavior.LeaderContinuExploration:
             if self.sm_action.current_state == sm.leader_explore_branch_set.Stationary:
                 self.sm_action.follow_the_gap()
-
             elif self.sm_action.current_state == sm.leader_explore_branch_set.FollowTheGap:
                 if isinstance(drone_situation["Intersection"], list):
                     self.sm_action.stationary()
@@ -305,7 +306,10 @@ class Behavior(BrainModule, StateMachine):
 
         elif self.current_state == Behavior.LeaderManageIntersection:
             if self.sm_action.current_state == sm.leader_manage_intersection_set.Stationary:
-                self.sm_action.Sendmsg()
+                if self.recieved_msgs["com send"] is None:
+                    self.sm_action.send_msg()
+                else:
+                    self.sm_action.stationary()
             elif self.sm_action.current_state == sm.leader_manage_intersection_set.Sendmsg:
                 if self.recieved_msgs["com send"] is not None:
                     self.sm_action.centering()
@@ -320,15 +324,20 @@ class Behavior(BrainModule, StateMachine):
             elif self.sm_action.current_state == sm.leader_manage_intersection_set.FollowTheGap:
                 if drone_situation["Corridor"]:
                     self.sm_action.stationary()
+                    self.recieved_msgs["com send"] = None
+                    """remettre recieved msg a none ?"""
                     self.behavior_determination(drone_situation)
         
         elif self.current_state == Behavior.LeaderWaiting:
             if self.sm_action.current_state == sm.leader_waiting_set.Stationary:
-                if drone_situation["Visual connectivity"][1][0][6] == "TC":
+                if self.recieved_msgs["com send"] is None:
+                    self.sm_action.send_msg()
+                elif drone_situation["Visual connectivity"][1][0][6] == "TC":
                     self.sm_action.stationary
+                    self.recieved_msgs["com send"] = None
                     self.behavior_determination(drone_situation)
                 else:
-                    self.sm_action.send_msg()
+                    self.sm_action.stationary()
     
             elif self.sm_action.current_state == sm.leader_waiting_set.Sendmsg:
                 if self.recieved_msgs["com send"] is not None:
@@ -354,23 +363,33 @@ class Behavior(BrainModule, StateMachine):
 
         elif self.current_state == Behavior.FollowerComeCloser:
             if self.sm_action.current_state == sm.follower_come_closer_set.Stationary:
-                self.sm_action.follower_come_closer()
-            if self.sm_action.current_state == sm.follower_come_closer_set.Sendmsg:
+                if self.recieved_msgs["com send"] is None:
+                    self.sm_action.send_msg()
+                elif drone_situation["Visual connectivity"][1][0][6] == "TC":
+                    if drone_situation["Corridor"]:
+                        self.sm_action.get_closer()
+                    elif isinstance(drone_situation["Intersection"], list):
+                        self.sm_action.rotation_to_the_left_most_gap()
+                else:
+                    self.sm_action.stationary()
+            elif self.sm_action.current_state == sm.follower_come_closer_set.Sendmsg:
                 if self.recieved_msgs["com send"] is not None:
-                    self.sm_action.follower_come_closer()
+                    self.sm_action.stationary()
             elif self.sm_action.current_state == sm.follower_come_closer_set.RotationToTheLeftMostGap:
                 if self.recieved_msgs["aligned"] is not None:
-                    self.sm_action.follower_come_closer()
+                    self.sm_action.get_closer()
             elif self.sm_action.current_state == sm.follower_come_closer_set.GetCloser:
                 pass
             
 
         elif self.current_state == Behavior.RootFollowerComeCloser:
             if self.sm_action.current_state == sm.root_follower_come_closer_set.Stationary:
-                if drone_situation["Visual connectivity"][1][0][6] == "TC":
+                if self.recieved_msgs["com send"] is None:
+                    self.sm_action.send_msg()
+                elif drone_situation["Visual connectivity"][1][0][6] == "TC":
                     self.sm_action.leave_root()
                 else:
-                    self.sm_action.send_msg()
+                    self.sm_action.stationary()
             elif self.sm_action.current_state == sm.root_follower_come_closer_set.Sendmsg:
                 if self.recieved_msgs["com send"] is not None:
                     self.sm_action.stationary()
@@ -383,6 +402,7 @@ class Behavior(BrainModule, StateMachine):
             elif self.sm_action.current_state == sm.root_follower_come_closer_set.GetCloser:
                 if isinstance(drone_situation["Intersection"],list):
                     self.sm_action.stationary()
+                    self.recieved_msgs["com send"] = None
                     self.behavior_determination(drone_situation)
 
 

@@ -23,13 +23,6 @@ class first_agent_start_set(StateMachine):
     ChangeRole = State()
     ChangeSituation = State()
     Stationary = State()
-
-    """first_agent_start = (Idle.to(TakeRoot)|
-                        TakeRoot.to(ChangeRole)|
-                        ChangeRole.to(ChangeSituation)|
-                        ChangeSituation.to(Stationary)|
-                        Stationary.to.itself()
-                        )"""
     
     take_root = Idle.to(TakeRoot)
     change_role = TakeRoot.to(ChangeRole)
@@ -57,15 +50,9 @@ class leader_start_set(StateMachine):
     Sendmsg = State()
     LeaveRoot = State()
     ChangeSituation = State()
-
-    """leader_start = (Stationary.to(Sendmsg)|
-                    Sendmsg.to(LeaveRoot)|
-                    LeaveRoot.to(ChangeSituation)|
-                    ChangeSituation.to(Stationary)
-                    )"""
     
     send_msg = Stationary.to(Sendmsg)
-    leave_root = Sendmsg.to(LeaveRoot)
+    leave_root = Stationary.to(LeaveRoot)
     change_situation = LeaveRoot.to(ChangeSituation)
     stationary = (ChangeSituation.to(Stationary) | Stationary.to.itself() | Sendmsg.to(Stationary))
     
@@ -91,9 +78,6 @@ class leader_explore_branch_set(StateMachine):
     Stationary = State(initial=True)
     FollowTheGap = State()
 
-    """leader_explore_branch = (Stationary.to(FollowTheGap)|
-                            FollowTheGap.to(Stationary)
-                            )"""
     follow_the_gap = Stationary.to(FollowTheGap)
     stationary = FollowTheGap.to(Stationary)
     
@@ -120,12 +104,6 @@ class leader_manage_intersection_set(StateMachine):
     RotationToTheLeftMostGap = State()
     FollowTheGap = State()
 
-    """leader_manage_intersection = (Stationary.to(Sendmsg)|
-                                        Sendmsg.to(Centering)|
-                                        Centering.to(RotationToTheLeftMostGap)|
-                                        RotationToTheLeftMostGap.to(FollowTheGap)|
-                                        FollowTheGap.to(Stationary)
-                                        )"""
     send_msg = Stationary.to(Sendmsg)
     centering = Sendmsg.to(Centering)
     rotation_to_the_left_most_gap = Centering.to(RotationToTheLeftMostGap)
@@ -157,9 +135,6 @@ class leader_manage_intersection_set(StateMachine):
 class leader_waiting_set(StateMachine):
     Stationary = State(initial=True)
     Sendmsg = State()
-
-    """leader_waiting = (Stationary.to(Sendmsg)|
-                      Sendmsg.to(Stationary))"""
     
     send_msg = Stationary.to(Sendmsg)
     stationary = (Sendmsg.to(Stationary) | Stationary.to.itself())
@@ -184,12 +159,6 @@ class agent_called_set(StateMachine):
     ChangeSituation = State()
     Stationary = State()
 
-    """agent_called = (Idle.to(TakeRoot)|
-                    TakeRoot.to(ChangeRole)|
-                    ChangeRole.to(ChangeSituation)|
-                    ChangeSituation.to(Stationary)  
-                    )"""
-    
     take_root = Idle.to(TakeRoot)
     change_role = TakeRoot.to(ChangeRole)
     change_situation = ChangeRole.to(ChangeSituation)
@@ -217,16 +186,9 @@ class root_follower_come_closer_set(StateMachine):
     LeaveRoot = State()
     ChangeSituation = State()
     GetCloser = State()
-
-    """root_follower_come_closer = (Stationary.to(Sendmsg)|
-                                        Sendmsg.to(LeaveRoot)|
-                                        LeaveRoot.to(ChangeSituation)|
-                                        ChangeSituation.to(GetCloser)|
-                                        GetCloser.to(Stationary)
-                                    )"""
     
     send_msg = Stationary.to(Sendmsg)
-    leave_root = Sendmsg.to(LeaveRoot)
+    leave_root = Stationary.to(LeaveRoot)
     change_situation = LeaveRoot.to(ChangeSituation)
     get_closer = ChangeSituation.to(GetCloser)
     stationary = (GetCloser.to(Stationary) | Stationary.to.itself() | Sendmsg.to(Stationary))
@@ -252,25 +214,15 @@ class follower_come_closer_set(StateMachine):
     Sendmsg = State()
     GetCloser = State()
     RotationToTheLeftMostGap = State()
-
-    """follower_come_closer = (Stationary.to(Sendmsg, unless ="flagcond")|
-                            Sendmsg.to(Stationary)|
-                            Stationary.to(GetCloser, unless = "inter")|
-                            Stationary.to.itself(on = "stat", unless = "tooclose")|
-                            GetCloser.to(Stationary)|
-                            Stationary.to(RotationToTheLeftMostGap, cond = "tooclose")|
-                            RotationToTheLeftMostGap.to(GetCloser)|
-                            GetCloser.to(Stationary))"""
     
-    send_msg = Stationary.to(Sendmsg, unless ="flagcond")
-    get_closer = Stationary.to(GetCloser)
-    rotation_to_the_left_most_gap = Stationary.to(RotationToTheLeftMostGap, cond = "tooclose")
-    stationary = (GetCloser.to(Stationary) | Stationary.to.itself(on = "stat", unless = "tooclose") | Sendmsg.to(Stationary))
+    send_msg = Stationary.to(Sendmsg)
+    get_closer = (Stationary.to(GetCloser)| RotationToTheLeftMostGap.to(GetCloser))
+    rotation_to_the_left_most_gap = Stationary.to(RotationToTheLeftMostGap)
+    stationary = (GetCloser.to(Stationary) | Stationary.to.itself() | Sendmsg.to(Stationary))
     
     def __init__(self, behavior):
         super().__init__()
         self.behavior = behavior
-        self.flag = False
         self.drone_action = {"action" : "Stationary", "gap sel id" : None}
 
     def on_enter_state(self, state):
@@ -296,26 +248,19 @@ class follower_come_closer_set(StateMachine):
     def visualmsg(self):
         return self.behavior.visual_msg == "purple"
 
-    def flagcond(self):
-        return self.flag
 
 
 class follower_manage_intersection_set(StateMachine):
     Stationary = State(initial=True)
     Centering = State()
-
-    """follower_manage_intersection = (Stationary.to(Centering, unless="wait")|
-                                    Centering.to(Stationary)|
-                                    Stationary.to.itself(on = "stat"))"""
     
-    centering = Stationary.to(Centering, unless="wait")
+    centering = Stationary.to(Centering)
     stationary = (Centering.to(Stationary) | Stationary.to.itself(on = "stat"))
 
     def __init__(self, behavior):
         super().__init__()
         self.behavior = behavior
         self.drone_action = {"action" : "Stationary", "gap sel id" : None}
-        self.flag = False
     
     def on_enter_state(self, state):
         if state.id != "Stationary":
@@ -355,12 +300,6 @@ class branch_reconfiguration_set(StateMachine):
     ChangeRole = State()
     TurnAround = State()
     
-
-    """branch_reconfiguration = (Stationary.to(ChangeRole)|
-                              ChangeRole.to(TurnAround)|
-                              TurnAround.to(Sendmsg)|
-                              Sendmsg.to(Stationary))"""
-    
     change_role = Stationary.to(ChangeRole)
     turn_around = ChangeRole.to(TurnAround)
     send_msg = TurnAround.to(Sendmsg)
@@ -384,6 +323,22 @@ class branch_reconfiguration_set(StateMachine):
     
     def on_enter_Sendmsg(self):
         self.behavior.send(self.behavior.signature, "Module manager", "send branch reconfiguration")
+
+class follower_waiting_set(StateMachine):
+    Stationary = State(initial=True)
+    
+    stationary = Stationary.to.itself()
+
+    def __init__(self, behavior):
+        super().__init__()
+        self.behavior = behavior
+        self.drone_action = {"action" : "Stationary", "gap sel id" : None}
+
+    def on_enter_state(self, state):
+        if state.id != "Stationary":
+            self.drone_action["action"] = state.id
+
+
 
     
 
