@@ -49,11 +49,10 @@ def AngleBetweenDir(dir_1, dir_2):
 
 class SensorsAnalyzer():
     def __init__(self,
-                 signature,
                  identifier
                  ):
         
-        super().__init__(signature)
+        super().__init__()
         self.identifier = identifier
 
         self.disable = True
