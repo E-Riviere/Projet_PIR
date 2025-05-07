@@ -145,19 +145,7 @@ class ActuatorsComputer():
             self.command["forward"] = -self.follower_pid_2(drone_dist)
             self.command["lateral"] = 0.0
             self.command["rotation"] = 0.0
-    
-    def leave_branch_command(self, drone_dist, dir):
-        print("dir", dir)
-
-        self.command["forward"] = -self.leave_branch_pid(drone_dist)
-        self.command["lateral"] = 0.0
-        if dir > 0:
-            self.command["rotation"] = 0.2
-        elif dir < 0:
-            self.command["rotation"] = -0.2
-        else:
-            self.command["rotation"] = 0.0
-
+ 
 
                 
 
