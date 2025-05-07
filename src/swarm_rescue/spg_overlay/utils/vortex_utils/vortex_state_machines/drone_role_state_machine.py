@@ -34,7 +34,8 @@ class RoleState(BrainModule):
 
         self.actual_role = {
         "Leader" : False,
-        "Follower" : False
+        "Root Follower" : False,
+        "Reconfiguration Follower" : False
         }
 
     def read_request(self, request):
@@ -46,15 +47,27 @@ class RoleState(BrainModule):
 
         if title == "set first drone role":
             self.actual_role["Leader"] = True
-            self.actual_role["Follower"] = False
+            self.actual_role["Root Follower"] = False
+            self.actual_role["Reconfiguration Follower"] = False
             self.send(self.signature, "Module manager", "drone role set")
 
         if title == "set drone role":
             self.actual_role["Leader"] = False
-            self.actual_role["Follower"] = True
+            self.actual_role["Root Follower"] = True
+            self.actual_role["Reconfiguration Follower"] = False
+            self.send(self.signature, "Module manager", "drone role set")
+        
+        if title == "set reconfiguration role":
+            self.actual_role["Leader"] = False
+            self.actual_role["Root Follower"] = False
+            self.actual_role["Reconfiguration Follower"] = True
             self.send(self.signature, "Module manager", "drone role set")
 
-    
-    # def on_enter_Leader(self):
-    #     print(self.identifier, "leader")   
+        if title == "set new leader role":
+            self.actual_role["Leader"] = True
+            self.actual_role["Root Follower"] = False
+            self.actual_role["Reconfiguration Follower"] = False
+            self.send(self.signature, "Module manager", "drone role set")
+
+
 

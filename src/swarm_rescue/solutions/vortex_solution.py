@@ -92,6 +92,7 @@ class MyDroneVortex(BrainModule, DroneAbstract):
         "send branch reconfiguration" : None,
         "send more agent required" : None,
         "send come closer" : None,
+        "send wait for reconfiguration" : None,
         "centered" : None,
         "aligned" : None,
         "too close" : None
@@ -169,6 +170,9 @@ class MyDroneVortex(BrainModule, DroneAbstract):
 
         elif title == "set drone role":
             self.send(self.signature, self.role.signature, title)
+        
+        elif title == "set reconfiguration role":
+            self.send(self.signature, self.role.signature, title)
 
         elif title == "drone role set":
             self.send(self.signature, self.behavior.signature, title)
@@ -240,6 +244,10 @@ class MyDroneVortex(BrainModule, DroneAbstract):
             if self.recieved_msgs["send come closer"]:
                 visual_com["visual msgs"].append("purple")
                 self.recieved_msgs["send come closer"] = None
+                self.send(self.signature, self.behavior.signature,"com send")
+            if self.recieved_msgs["send wait for reconfiguration"]:
+                visual_com["visual msgs"].append("orange")
+                self.recieved_msgs["send wait for reconfiguration"] = None
                 self.send(self.signature, self.behavior.signature,"com send")
 
             # if self.identifier == 0:

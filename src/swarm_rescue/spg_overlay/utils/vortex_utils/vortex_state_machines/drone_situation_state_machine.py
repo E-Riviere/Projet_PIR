@@ -99,8 +99,28 @@ class Situation(BrainModule):
         
         if len(analyzed_data["visual connectivity"]) > 0:
             self.drone_situation["Visual connectivity"] = [True, analyzed_data["visual connectivity"]]
+            self.all_branch_explored(analyzed_data)
+
         else:
             self.drone_situation["Visual connectivity"] = [None]
+
+        
+
+
+    def all_branch_explored(self, analyzed_data):
+        if self.drone_situation["Intersection"] == True:
+            VC = analyzed_data["visual connectivity"]
+            gap_nb = analyzed_data["positive gap number"]
+
+            for vc in VC[1]:
+                if vc[3] == 1:
+                    self.drone_situation["All branch explored"] = True
+                else:
+                    self.drone_situation["All branch explored"] = False
+
+        else:
+            self.drone_situation["All branch explored"] = False
+
 
 
         

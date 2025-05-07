@@ -65,6 +65,7 @@ class MyDroneKeyboard(DroneAbstract):
             if self.identifier == 0:
                 self.analyzor.analyze(self.lidar_values(), self.lidar_rays_angles(), self.semantic_values())
                 print(self.analyzor.analyzed_data["visual connectivity"])
+                print(self.analyzor.analyzed_data["positive gap detection memory"])
                 #print(self.analyzor.CriticalVisualConnexion(self.lidar_values(), self.analyzor.analyzed_data["drone detection"]))
                 
 

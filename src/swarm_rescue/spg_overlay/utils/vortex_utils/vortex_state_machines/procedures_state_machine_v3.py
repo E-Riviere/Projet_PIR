@@ -19,6 +19,8 @@ class Behavior(BrainModule, StateMachine):
     BranchReconfiguration = State()
     BehaviorInterruption = State()
     FollowerWaiting = State()
+    ReconfigurationFollower = State()
+    NewLeader = State()
 
     start_first_drone = DroneWaitingInStock.to(FirstDroneStart, cond = ["first_drone_id"])
 
@@ -27,7 +29,10 @@ class Behavior(BrainModule, StateMachine):
     leader_explore = (LeaderLeaveTheRoot.to(LeaderContinuExploration) |
                       LeaderManageIntersection.to(LeaderContinuExploration)|
                       LeaderWaiting.to(LeaderContinuExploration)|
-                      BehaviorInterruption.to(LeaderContinuExploration)
+                      BehaviorInterruption.to(LeaderContinuExploration) |
+                      FollowerComeCloser.to(LeaderContinuExploration) |
+                      FollowerManageIntersection.to(LeaderContinuExploration) |
+                      NewLeader.to(LeaderContinuExploration)
                       )
     
     agent_called = DroneWaitingInStock.to(CalledToEnterTheEnvironment)
@@ -37,20 +42,31 @@ class Behavior(BrainModule, StateMachine):
                             FollowerManageIntersection.to(FollowerComeCloser)|
                             FollowerComeCloser.to.itself()|
                             BranchReconfiguration.to(FollowerComeCloser)|
-                            BehaviorInterruption.to(FollowerComeCloser)
+                            BehaviorInterruption.to(FollowerComeCloser) |
+                            FollowerWaiting.to(FollowerComeCloser)
                             )
     
+    reconfiguration_follower = (BranchReconfiguration.to(ReconfigurationFollower))
+    
+    follower_waiting_procedure = (FollowerComeCloser.to(FollowerWaiting) | RootFollowerComeCloser.to(FollowerWaiting))
+
     leader_wait_procedure = LeaderContinuExploration.to(LeaderWaiting)
 
-    dead_end_procedure = LeaderContinuExploration.to(BranchReconfiguration)
+    dead_end_procedure = (LeaderContinuExploration.to(BranchReconfiguration) |
+                          FollowerComeCloser.to(BranchReconfiguration))
 
     intersection_procedure = (LeaderContinuExploration.to(LeaderManageIntersection)|
                     FollowerComeCloser.to(FollowerManageIntersection)|
-                    RootFollowerComeCloser.to(FollowerManageIntersection)
+                    RootFollowerComeCloser.to(FollowerManageIntersection) |
+                    ReconfigurationFollower.to(FollowerManageIntersection)
                     )
     
     interruption = (LeaderContinuExploration.to(BehaviorInterruption)|
-                    FollowerComeCloser.to(BehaviorInterruption))
+                    FollowerComeCloser.to(BehaviorInterruption) |
+                    ReconfigurationFollower.to(BehaviorInterruption)
+                    )
+    
+    new_leader = FollowerManageIntersection.to(NewLeader)
 
     def __init__(self,
                  signature,
@@ -131,6 +147,15 @@ class Behavior(BrainModule, StateMachine):
         
         elif drone_behavior == Behavior.BranchReconfiguration:
             self.sm_action = sm.branch_reconfiguration_set(self)
+        
+        elif drone_behavior == Behavior.FollowerWaiting:
+            self.sm_action = sm.follower_waiting_set(self)
+
+        elif drone_behavior == Behavior.ReconfigurationFollower:
+            self.sm_action = sm.reconfiguration_follower_set(self)
+
+        elif drone_behavior == Behavior.NewLeader:
+            self.sm_action = sm.new_leader_set(self)
 
     def read_request(self, request):
         if request == "Need behavior":
@@ -218,20 +243,36 @@ class Behavior(BrainModule, StateMachine):
             elif self.current_state == Behavior.LeaderWaiting:
                 if drone_situation["Visual connectivity"][1][0][6] == "TC":
                     self.leader_explore()
-        
+            
+            elif self.current_state == Behavior.FollowerComeCloser:
+                if self.recieved_msgs["drone role"][1]["Root Follower"] == True:
+                    self.dead_end_procedure()
+                elif self.visual_msg == "orange":
+                    self.follower_waiting_procedure()
+            elif self.current_state == Behavior.BranchReconfiguration: 
+                if self.recieved_msgs["drone role"][1]["Reconfiguration Follower"] == True:
+                    self.reconfiguration_follower()
+            elif self.current_state == Behavior.NewLeader:
+                self.leader_explore()
+
         elif isinstance(drone_situation["Intersection"], list):
             if self.current_state.id == "LeaderContinuExploration":
                 self.intersection_procedure()
             elif self.current_state.id == "RootFollowerComeCloser":
                 self.intersection_procedure()
             elif self.current_state == Behavior.FollowerManageIntersection:
-                self.follower_come_closer()
+                if self.visual_msg == "purple":
+                    self.follower_come_closer()
+                elif self.visual_msg == "red":
+                    self.new_leader()
+            elif self.current_state == Behavior.ReconfigurationFollower:
+                self.intersection_procedure()
 
         elif drone_situation["Dead end"]:
             if self.current_state == Behavior.LeaderContinuExploration:
                 self.dead_end_procedure()
             elif self.current_state == Behavior.BranchReconfiguration:
-                self.follower_come_closer()
+                self.reconfiguration_follower()
 
         if self.identifier == 0 :
             print(drone_situation, self.recieved_msgs["drone role"][1])
@@ -249,7 +290,7 @@ class Behavior(BrainModule, StateMachine):
             if drone_situation["Visual connectivity"][1][0][4] == "NCVC obst":
                 if self.recieved_msgs["drone role"][1]["Leader"] == True:
                     self.leader_explore()
-                if self.recieved_msgs["drone role"][1]["Follower"] == True:
+                if self.recieved_msgs["drone role"][1]["Root Follower"] == True:
                     pass
 
         
@@ -325,7 +366,6 @@ class Behavior(BrainModule, StateMachine):
                 if drone_situation["Corridor"]:
                     self.sm_action.stationary()
                     self.recieved_msgs["com send"] = None
-                    """remettre recieved msg a none ?"""
                     self.behavior_determination(drone_situation)
         
         elif self.current_state == Behavior.LeaderWaiting:
@@ -377,9 +417,21 @@ class Behavior(BrainModule, StateMachine):
                     self.sm_action.stationary()
             elif self.sm_action.current_state == sm.follower_come_closer_set.RotationToTheLeftMostGap:
                 if self.recieved_msgs["aligned"] is not None:
+                    self.recieved_msgs["aligned"] = None
                     self.sm_action.get_closer()
             elif self.sm_action.current_state == sm.follower_come_closer_set.GetCloser:
-                pass
+                if self.visual_msg == "red":
+                    self.sm_action.stationary()
+                    self.recieved_msgs["com send"] = None
+                    self.behavior_determination(drone_situation)
+                # elif isinstance(drone_situation["Intersection"],list):
+                #     self.sm_action.stationary()
+                #     self.recieved_msgs["com send"] = None
+                #     self.behavior_determination(drone_situation)
+                elif self.visual_msg == "orange":
+                    self.sm_action.stationary()
+                    self.recieved_msgs["com send"] = None
+                    self.behavior_determination(drone_situation)
             
 
         elif self.current_state == Behavior.RootFollowerComeCloser:
@@ -411,30 +463,91 @@ class Behavior(BrainModule, StateMachine):
                 if self.visual_msg == "purple":
                     self.sm_action.stationary()
                     self.behavior_determination(drone_situation)
-                else:
+                elif self.visual_msg == "red":
+                    if drone_situation["All branch explored"] == True:
+                        self.sm_action.send_msg()
+                    else:
+                        self.recieved_msgs["com send"] = None
+                        self.sm_action.stationary()
+                        self.behavior_determination(drone_situation)
+                elif self.recieved_msgs["centered"] is None:
                     self.sm_action.centering()
+                else:
+                    self.sm_action.stationary()
             elif self.sm_action.current_state == sm.follower_manage_intersection_set.Centering:
                 if self.recieved_msgs["centered"] is not None:
                     self.sm_action.stationary()
-                if self.visual_msg == "purple":
+                elif self.visual_msg == "purple":
                     self.sm_action.stationary()
                     self.behavior_determination(drone_situation)
+                elif self.visual_msg == "red":
+                    if drone_situation["All branch explored"] == True:
+                        self.sm_action.send_msg()
+                    else:
+                        self.recieved_msgs["com send"] = None 
+                        self.sm_action.stationary()
+                        self.behavior_determination(drone_situation)
+            elif self.sm_action.current_state == sm.follower_manage_intersection_set.Sendmsg: 
+                if self.recieved_msgs["com send"] is not None:
+                    self.sm_action.stationary()
 
 
         elif self.current_state == Behavior.BranchReconfiguration:
             if self.sm_action.current_state == sm.branch_reconfiguration_set.Stationary:
-                self.sm_action.change_role()
-            elif self.sm_action.current_state == sm.branch_reconfiguration_set.ChangeRole:
-                if self.recieved_msgs["drone role set"] is not None:
-                    self.sm_action.turn_around()
+                self.sm_action.turn_around()
             elif self.sm_action.current_state == sm.branch_reconfiguration_set.TurnAround:
                 if self.recieved_msgs["aligned"] is not None:
                     self.recieved_msgs["aligned"] = None
-                    self.sm_action.send_msg()
-            elif self.sm_action.current_state == sm.branch_reconfiguration_set.Sendmsg:
-                if self.recieved_msgs["com send"] is not None:
+                    self.sm_action.change_role()
+            elif self.sm_action.current_state == sm.branch_reconfiguration_set.ChangeRole:
+                if self.recieved_msgs["drone role set"] is not None:
+                    self.recieved_msgs["drone role set"] = None
                     self.sm_action.stationary()
                     self.behavior_determination(drone_situation)
+
+        
+        elif self.current_state == Behavior.ReconfigurationFollower:
+            if self.sm_action.current_state == sm.reconfiguration_follower_set.Stationary:
+                if self.recieved_msgs["com send"] is None:
+                    self.sm_action.send_msg()
+                else:
+                    self.sm_action.get_closer()
+            elif self.sm_action.current_state == sm.reconfiguration_follower_set.Sendmsg:
+                if self.recieved_msgs["com send"] is not None:
+                    self.sm_action.stationary()
+            elif self.sm_action.current_state == sm.reconfiguration_follower_set.EmptyBranch:
+                if isinstance(drone_situation["Intersection"],list):
+                    self.sm_action.stationary()
+                    self.recieved_msgs["com send"] = None
+                    self.behavior_determination(drone_situation)
+
+        elif self.current_state == Behavior.NewLeader:
+            if self.sm_action.current_state == sm.new_leader_set.Stationary:
+                if self.recieved_msgs["com send"] is None:
+                    self.sm_action.send_msg()
+                else:
+                    self.sm_action.change_role()
+            elif self.sm_action.current_state == sm.new_leader_set.Sendmsg:
+                if self.recieved_msgs["com send"] is not None:
+                    self.sm_action.stationary()
+            elif self.sm_action.current_state == sm.new_leader_set.ChangeRole:
+                if self.recieved_msgs["drone role set"] is not None:
+                    self.recieved_msgs["drone role set"] = None
+                    self.sm_action.rotation_to_the_left_most_gap()
+            elif self.sm_action.current_state == sm.new_leader_set.RotationToTheLeftMostGap:
+                if (self.recieved_msgs["aligned"] is not None
+                    and drone_situation["Visual connectivity"][1][-1][6] == "TC"):
+                    self.recieved_msgs["aligned"] = None
+                    self.sm_action.follow_the_gap()
+            elif self.sm_action.current_state == sm.new_leader_set.FollowTheGap:
+                if drone_situation["Corridor"]:
+                    self.sm_action.stationary()
+                    self.recieved_msgs["com send"] = None
+                    self.behavior_determination(drone_situation)
+
+        elif self.current_state == Behavior.FollowerWaiting:
+            if self.sm_action.current_state == sm.follower_waiting_set.Stationary:
+                self.sm_action.stationary()
             
 
         # if self.identifier ==0:
@@ -468,6 +581,10 @@ class Behavior(BrainModule, StateMachine):
                             self.visual_msg = "red"
                             print(self.identifier, self.visual_msg)
 
+                        if len(com["visual msgs"])>0 and "orange" in com["visual msgs"]:
+                            self.visual_msg = "orange"
+                            print(self.identifier, self.visual_msg)
+
 
             if self.current_state.id == "DroneWaitingInStock":
                 for com in coms:
@@ -486,6 +603,12 @@ class Behavior(BrainModule, StateMachine):
                 for com in coms:
                     if len(com["visual indications"])>0 and com["visual indications"][0] == "white":
                         self.visual_indication = com["visual indications"][0]
+
+            # if self.current_state == Behavior.FollowerComeCloser:
+            #     for com in coms:
+            #         if len(com["visual indications"])>0 and com["visual indications"][0] == "blue":
+            #             self.visual_indication = com["visual indications"][0]
+            #             print(self.identifier, self.visual_indication)
             
 
                         

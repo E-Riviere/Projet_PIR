@@ -141,8 +141,8 @@ class DroneAbstract(Agent):
             self.size_area = misc_data.size_area
 
         self.base.add(DroneSemanticSensor(playground=self.playground,
-                                          invisible_elements=self._parts))
-        self.base.add(DroneLidar(invisible_elements=self._parts))
+                                          invisible_elements=self._parts, noise=False))
+        self.base.add(DroneLidar(invisible_elements=self._parts, noise=False))
 
         self.base.add(DroneGPS())
         self.base.add(DroneCompass())

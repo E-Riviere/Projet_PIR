@@ -115,9 +115,9 @@ class SensorsAnalyzer(BrainModule):
     #Collision
     def CollideDetection(self, lidar_data):
         Obst = []
-        if min(lidar_data) < 15:
+        if min(lidar_data) < 20:
             for i, dist in enumerate(lidar_data):
-                if dist < 15:
+                if dist < 20:
                     Obst.append([i, dist])
             return Obst
 

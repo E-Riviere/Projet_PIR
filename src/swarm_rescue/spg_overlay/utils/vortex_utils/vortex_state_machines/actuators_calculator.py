@@ -47,6 +47,8 @@ class ActuatorsComputer(BrainModule):
         self.follower_pid_1.setpoint = 125
         self.follower_pid_2 = PID(Kp=0.1, Ki=0.02, Kd=0.02, output_limits=(-0.1,0.1))
         self.follower_pid_2.setpoint = 50
+        self.leave_branch_pid = PID(Kp=0.1, Ki=0.02, Kd=0.02, output_limits=(-0.1,0.1))
+        self.leave_branch_pid.setpoint = 50
 
 
     def read_request(self, request):
@@ -62,7 +64,9 @@ class ActuatorsComputer(BrainModule):
             self.command_selector(dico)
             potential_field_command = self.potential_field.TotalRepulsivePotentialFieldVector(self.recieved_msgs["collision detection"][1], self.lidar_angle)
             if potential_field_command is not None:
+                print(self.identifier, "collision")
                 (self.command["forward"], self.command["lateral"]) = potential_field_command
+ 
             self.send(self.signature, "Module manager", "actuators values", self.command)
 
         elif title == "gps pos":
@@ -121,11 +125,21 @@ class ActuatorsComputer(BrainModule):
             if len(self.recieved_msgs["drone detection"][1]):
                 if self.recieved_msgs["drone detection"][1][-1][6] == "NTC":
                     drone_dist = self.recieved_msgs["drone detection"][1][0][2]
-                    self.follower_control_command(drone_dist, 1)
+                    ray = self.recieved_msgs["drone detection"][1][-1][1]
+                    self.follower_control_command(drone_dist, 1, ray)
                 
                 else:
                     drone_dist = self.recieved_msgs["drone detection"][1][-1][2]
-                    self.follower_control_command(drone_dist, 2)
+                    ray = self.recieved_msgs["drone detection"][1][-1][1]
+                    self.follower_control_command(drone_dist, 2, ray)
+
+        if drone_behaviors["action"] == "EmptyBranch":
+            self.request(self.signature, "Module manager", "Need drone detection")
+            self.request(self.signature, "Module manager", "Need positive gap directions")
+            dir = self.recieved_msgs["gap dir"][1][-1]
+            if len(self.recieved_msgs["drone detection"][1]):
+                drone_dist = self.recieved_msgs["drone detection"][1][0][2]
+                self.leave_branch_command(drone_dist, dir)
         
         if drone_behaviors["action"] == "TurnAround":
             self.request(self.signature, "Module manager", "Need positive gap directions")
@@ -142,7 +156,6 @@ class ActuatorsComputer(BrainModule):
 
 
     def take_root_control_command(self, gps_pose, root_pose):
-        # print("b")
         eps = 10**(0)
         if gps_pose[1] - root_pose[1] > eps:
             self.command["forward"] = 0.0
@@ -240,7 +253,7 @@ class ActuatorsComputer(BrainModule):
             self.send(self.signature, "Module manager", "aligned")
 
     
-    def follower_control_command(self, drone_dist, pid):
+    def follower_control_command(self, drone_dist, pid, ray):
         self.command["forward"] = 0.0
         self.command["lateral"] = 0.0
         self.command["rotation"] = 0.0
@@ -249,11 +262,43 @@ class ActuatorsComputer(BrainModule):
             self.command["forward"] = self.follower_pid_1(drone_dist)
             self.command["lateral"] = 0.0
             self.command["rotation"] = 0.0
+            # if ray > 91:
+            #     print("aaaa", self.identifier)
+            #     self.command["rotation"] = 0.2
+            # elif ray < 91:
+            #     print("bbbb", self.identifier)
+            #     self.command["rotation"] = -0.2
+            # else:
+            #     self.command["rotation"] = 0.0
 
         elif pid==2:
             self.command["forward"] = -self.follower_pid_2(drone_dist)
             self.command["lateral"] = 0.0
             self.command["rotation"] = 0.0
+            # if ray > 91:
+            #     print("aaaa", self.identifier)
+            #     self.command["rotation"] = 0.2
+            # elif ray < 91:
+            #     print("bbbb", self.identifier)
+            #     self.command["rotation"] = -0.2
+            # else:
+            #     self.command["rotation"] = 0.0
+    
+    def leave_branch_command(self, drone_dist, dir):
+        print("dir", dir)
+
+        self.command["forward"] = -self.leave_branch_pid(drone_dist)
+        self.command["lateral"] = 0.0
+        if dir > 0:
+            print("aaaa", self.identifier)
+            self.command["rotation"] = 0.2
+        elif dir < 0:
+            print("bbbb", self.identifier)
+            self.command["rotation"] = -0.2
+        else:
+            self.command["rotation"] = 0.0
+
+
                 
 
     
