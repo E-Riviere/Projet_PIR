@@ -50,6 +50,7 @@ class MyDronePIR(DroneAbstract):
                 print(self.state)
                 self.sensors_analyzer.disable = False
         elif self.state == "follow the gap": 
+            print(self.compass_values())
             print(self.sensors_analyzer.analyzed_data['positive gap number'])
             if self.sensors_analyzer.analyzed_data['positive gap number'] > 0:
                 if self.sensors_analyzer.analyzed_data['positive gap number'] < 3 :
@@ -65,6 +66,7 @@ class MyDronePIR(DroneAbstract):
                         self.choosed_gap = 0
                         self.goal_compass = pos_gap_dir[self.choosed_gap]
                         self.returning_last_center = True
+                        self.init_compass_value = self.compass_values()
                     else:
                         self.goal_data_analyze = self.sensors_analyzer.analyzed_data['positive gap direction']
                         self.actuators_computer.FollowTheGap(self.goal_data_analyze,-1)
@@ -86,7 +88,8 @@ class MyDronePIR(DroneAbstract):
                 if statistics.variance(min_dist) < 5 and np.linalg.norm(self.measured_velocity()) < 0.1:
                     self.state = "align with gap"
                     print(self.state)
-                    self.choosed_gap = random.randint(0,self.sensors_analyzer.analyzed_data['positive gap number'] - 1)
+                    # self.choosed_gap = random.randint(0,self.sensors_analyzer.analyzed_data['positive gap number'] - 1)
+                    self.choosed_gap = -1
                     pos_gap_dir = self.sensors_analyzer.analyzed_data['positive gap direction']
                     self.goal_compass = pos_gap_dir[self.choosed_gap]
                     self.init_compass_value = self.compass_values()
@@ -99,24 +102,22 @@ class MyDronePIR(DroneAbstract):
             #print(self.choosed_gap )
                 # gaps = self.sensors_analyzer.analyzed_data['positive gap direction'][choosed_gap]
             self.actuators_computer.AlignWithTheGap(self.sensors_analyzer.analyzed_data['positive gap direction'],self.choosed_gap )
-            abs((abs(self.compass_values()) + abs(self.init_compass_value)) - abs(self.goal_compass))
+            print(abs(abs(self.compass_values() - self.init_compass_value) - abs(self.goal_compass)))
+            print(self.init_compass_value)
             print(self.compass_values())
             print(self.goal_compass)
-            if abs((abs(self.compass_values()) + abs(self.init_compass_value)) - abs(self.goal_compass)) < 0.1 and self.measured_angular_velocity() < 0.1 :
+            print(self.measured_angular_velocity())
+            if abs(abs(self.compass_values() - self.init_compass_value) - abs(self.goal_compass)) < 0.1 and self.measured_angular_velocity() < 0.1 :
                 self.state = "enter the gap"
                 print(self.state)
                 self.count = 0
-                
 
-
-            
-        
-        
-        if (x + 200)**2 + (y)**2 < 50:
-            self.initialized = True
-            self.sensors_analyzer.disable = False
+        # if (x + 200)**2 + (y)**2 < 50:
+        #     self.initialized = True
+        #     self.sensors_analyzer.disable = False
         self.sensors_analyzer.analyze(self.lidar_values(),self.lidar_rays_angles(),self.semantic_values())
         command = self.actuators_computer.command
+
         if self.state == "enter the gap":
             self.count += 1
             command = {
@@ -127,6 +128,8 @@ class MyDronePIR(DroneAbstract):
             if self.count > 20:
                 self.state = "follow the gap"
                 print(self.state)
+
         return command
+    
     def define_message_for_all(self):
         return super().define_message_for_all()
