@@ -10,12 +10,10 @@ from spg_overlay.utils.vortex_utils.Potential_field import PotentialField
 class ActuatorsComputer():
 
     def __init__(self,
-                 signature,
                  identifier,
                  lidar_angle
                  ):
         
-        super().__init__(signature)
         self.identifier = identifier
         self.lidar_angle = lidar_angle
 
