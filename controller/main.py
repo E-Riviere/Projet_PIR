@@ -176,27 +176,30 @@ if __name__ == '__main__':
         socket_dict[uris[i]] = conn
 
     print('Connecting to Crazyflies...')
-    with Swarm(uris, factory=factory) as swarm:
+    while True:
+        data = socket_dict[uris[0]].recv(1024)
+        print("data> ", data.decode())
+    # with Swarm(uris, factory=factory) as swarm:
         
-        swarm.parallel_safe(print_check)
-        print('Connected to  Crazyflies')
+    #     swarm.parallel_safe(print_check)
+    #     print('Connected to  Crazyflies')
 
         
-        # print('Performing light check')
-        # swarm.parallel_safe(light_check)
-        # print('Light check done')
-        swarm.parallel_safe(print_check)
+    #     # print('Performing light check')
+    #     # swarm.parallel_safe(light_check)
+    #     # print('Light check done')
+    #     swarm.parallel_safe(print_check)
 
-        time.sleep(0.5)
-        print('Reseting estimators')
-        swarm.reset_estimators()
-        print('Estimators have been reset')
+    #     time.sleep(0.5)
+    #     print('Reseting estimators')
+    #     swarm.reset_estimators()
+    #     print('Estimators have been reset')
 
-        swarm.parallel_safe(start_states_log)
-        print('Logging states info...')
+    #     swarm.parallel_safe(start_states_log)
+    #     print('Logging states info...')
 
-        print('Lets fly ! Put your protection glasses on')
-        swarm.parallel_safe(fly_sequence)
+    #     print('Lets fly ! Put your protection glasses on')
+    #     swarm.parallel_safe(fly_sequence)
 
 
         

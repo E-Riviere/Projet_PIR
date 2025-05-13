@@ -24,7 +24,8 @@ class MyDronePIR(DroneAbstract):
 
     state = "take root"
 
-    socket = input("socket :")
+    socket = int(input("socket :"))
+    client_socket = None
 
     def __init__(self,
                 identifier: Optional[int] = None,
@@ -38,23 +39,18 @@ class MyDronePIR(DroneAbstract):
         self.sensors_analyzer = SensorsAnalyzer(identifier)
         self.sensors_analyzer.disable = False
         self.close_socket_com = False
-        self.connect()
+        # self.connect()
+        # print(self.client_socket)
 
     def control(self):
+        x,y = self.gps_values()
+        print("coucou", self.client_socket)
         if self.client_socket == None:
             self.connect()
-        x,y = self.gps_values()
-        m = "{} {} {} {} {} {} {} {};".format()(
-            x,
-            y,
-            self.measured_velocity()[0],
-            self.measured_velocity()[1],
-            self.measured_angular_velocity(),
-            self.compass_values(),
-            self.lidar_values(),
-            self.semantic_values()
-        )
-        self.client_socket.sendall(m.encode())
+            print("a",self.client_socket)
+        else:
+            m = f"{str(x)} {str(y)};"
+            self.client_socket.sendall(m.encode())
         
         lidar_values = self.lidar_values()
         self.returning_last_center = False
@@ -154,9 +150,21 @@ class MyDronePIR(DroneAbstract):
     def connect(self):
         self.close_socket_com
         HOST = "localhost"
-        PORT = 6666
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.client_socket:
-            socket.setblocking(False)
-            #client_socket.sendall(m.encode())
+        PORT = self.socket
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # self.client_socket.setblocking(False)
+        try :
             self.client_socket.connect((HOST, PORT))
+            print(self.client_socket)
+        except OSError as e:
+            if e.errno !=115:
+                raise
+            print("Error connecting to server:", e)
+            self.client_socket.close()
+            self.client_socket = None
+            return
+        else:
+            print(self.client_socket)
+            print("Connected to server")
+            print(self.client_socket)
             
