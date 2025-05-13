@@ -22,8 +22,8 @@ class MyDronePIR(DroneAbstract):
     goal_compass = None
     count = None
 
-    state = "take root"
-
+    state = "waiting connection"
+    
     socket = int(input("socket :"))
     client_socket = None
 
@@ -51,7 +51,11 @@ class MyDronePIR(DroneAbstract):
         else:
             m = f"{str(x)} {str(y)};"
             self.client_socket.sendall(m.encode())
-        
+        if self.state == "waiting connection":
+            mes = self.client_socket.recv(1024).decode()
+            if mes == "Connected":
+                print("Starting")
+                self.state = "take root"
         lidar_values = self.lidar_values()
         self.returning_last_center = False
         if self.state == "take root":

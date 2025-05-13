@@ -11,7 +11,7 @@ import sys
 import socket
 
 
-uris = ['radio://0/80/2M/8']
+uris = ['radio://0/80/2M/A8']
         #'radio://0/80/2M/9',
         #'radio://0/80/2M/A1']
 pos_dict = {}
@@ -139,17 +139,32 @@ def fly_sequence(scf):
         en_cours = True
 
         v_0 = 0.35
-
+        mes = socket_dict[uris[0]].sendall("Connected".encode())
  
             
         float_size = np.float64().nbytes
 
         take_off(cf, 0.50)
+        mes = socket_dict[uris[0]].recv(1024).decode()
+        go_to(cf,0,0,scf)
+        time.sleep(0.5)
 
-        for i in range(100000):
-            print(socket_dict[scf.cf.link_uri].recv())
+        x =-1
+        print("crash")
+        while x < -0.210 or True:
+            mes = socket_dict[uris[0]].recv(1024).decode()
+            x,y = mes.split(";")[0].split(" ")
+            x = float(x)
+            y = float(y)
+            print('Connecting to Crazyflies...')
+            print(x,y)
+            x = x/1000
+            y = y/1000
+            go_to(cf,x,y,scf)
+            time.sleep(0.1)
 
         land(cf, pos_dict[scf.cf.link_uri])
+        time.sleep(1)
 
     except Exception as e:
         land(cf, pos_dict[scf.cf.link_uri])
@@ -174,32 +189,32 @@ if __name__ == '__main__':
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         conn, addr = serversocket.accept()
         socket_dict[uris[i]] = conn
-
-    print('Connecting to Crazyflies...')
-    while True:
-        data = socket_dict[uris[0]].recv(1024)
-        print("data> ", data.decode())
-    # with Swarm(uris, factory=factory) as swarm:
         
-    #     swarm.parallel_safe(print_check)
-    #     print('Connected to  Crazyflies')
 
         
-    #     # print('Performing light check')
-    #     # swarm.parallel_safe(light_check)
-    #     # print('Light check done')
-    #     swarm.parallel_safe(print_check)
+        
+    with Swarm(uris, factory=factory) as swarm:
+        
+        swarm.parallel_safe(print_check)
+        print('Connected to  Crazyflies')
 
-    #     time.sleep(0.5)
-    #     print('Reseting estimators')
-    #     swarm.reset_estimators()
-    #     print('Estimators have been reset')
+        
+        # print('Performing light check')
+        # swarm.parallel_safe(light_check)
+        # print('Light check done')
+        swarm.parallel_safe(print_check)
 
-    #     swarm.parallel_safe(start_states_log)
-    #     print('Logging states info...')
+        time.sleep(0.5)
+        print('Reseting estimators')
+        swarm.reset_estimators()
+        
+        print('Estimators have been reset')
 
-    #     print('Lets fly ! Put your protection glasses on')
-    #     swarm.parallel_safe(fly_sequence)
+        swarm.parallel_safe(start_states_log)
+        print('Logging states info...')
+
+        print('Lets fly ! Put your protection glasses on')
+        swarm.parallel_safe(fly_sequence)
 
 
         
