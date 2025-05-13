@@ -8,13 +8,15 @@ import multiprocessing
 from multiprocessing import shared_memory
 import sys
 
+import socket
+
+
 uris = ['radio://0/80/2M/8']
         #'radio://0/80/2M/9',
         #'radio://0/80/2M/A1']
 pos_dict = {}
 vel_dict = {}
-shm_dict = {}
-coord_dict = {}
+socket_dict = {}
 global k
 k = 0
 def start_states_log(scf):
@@ -65,7 +67,7 @@ def go_to(cf, x, y,scf):
     # - if don't work send_full_state_setpoint orientation (quaternions)
     # 
     cf.commander.send_full_state_setpoint([x,y,0.5],[0.5,0.5,0.5],[0,0,0],[0,0,0,1],0,0,0)
-    while x_cond*pos_dict[cf.link_uri][0] < x_cond*x  or y_cond*pos_dict[cf.link_uri][1] < y_cond*y:
+    while x_cond*pos_dict[cf.link_uri][0] < x_cond*x or y_cond*pos_dict[cf.link_uri][1] < y_cond*y:
         cf.commander.send_full_state_setpoint([x,y,0.5],[0.5,0.5,0.5],[0,0,0],[0,0,0,1],0,0,0)
         time.sleep(0.05)
 
@@ -74,15 +76,6 @@ def go_to(cf, x, y,scf):
     cf.commander.send_velocity_world_setpoint(0, 0, 0, 0)
     
     
-def setup_memory(scf):
-    
-    size = np.ndarray((2, 1),dtype=np.dtype(np.float64)).nbytes * 2
-    print(scf.cf.link_uri.split("/")[-1],size)
-    shm_dict[scf.cf.link_uri] = shared_memory.SharedMemory(name=scf.cf.link_uri.split("/")[-1],create=True, size=size)
-    print(len(shm_dict[scf.cf.link_uri].buf))
-    coord_dict[scf.cf.link_uri] = np.ndarray((2, 1),dtype = np.dtype(np.float64), buffer=shm_dict[scf.cf.link_uri].buf)
-
-    print("Shared memory created")
     
 
 
@@ -152,14 +145,10 @@ def fly_sequence(scf):
         float_size = np.float64().nbytes
 
         take_off(cf, 0.50)
-        buf = shm_dict[cf.link_uri].buf[:].decode()
-        print(buf)
-        [x,y] = buf
-        while x < 0:
-            print([x,y])
-            go_to(cf,x,y,scf)
-            buf = shm_dict[cf.link_uri].buf[:]
-            [x,y] = buf
+
+        for i in range(100000):
+            print(socket_dict[scf.cf.link_uri].recv())
+
         land(cf, pos_dict[scf.cf.link_uri])
 
     except Exception as e:
@@ -168,9 +157,24 @@ def fly_sequence(scf):
         print(e)
 
 if __name__ == '__main__':
+    while True:
+        try:
+            nb_drone_sim = int(input("Combien de drone dans le simulateur : "))
+            break
+        except ValueError:
+            print("Invalid input! Please enter a valid integer.")
 
     cflib.crtp.init_drivers()
     factory = CachedCfFactory(rw_cache='./cache')
+
+    serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    serversocket.bind(("localhost", 3080))
+    serversocket.listen(5)
+    for i in range(nb_drone_sim if nb_drone_sim > len(uris) else len(uris)):
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        conn, addr = serversocket.accept()
+        socket_dict[uris[i]] = conn
+
     print('Connecting to Crazyflies...')
     with Swarm(uris, factory=factory) as swarm:
         
@@ -186,7 +190,6 @@ if __name__ == '__main__':
         time.sleep(0.5)
         print('Reseting estimators')
         swarm.reset_estimators()
-        swarm.parallel_safe(setup_memory)
         print('Estimators have been reset')
 
         swarm.parallel_safe(start_states_log)
