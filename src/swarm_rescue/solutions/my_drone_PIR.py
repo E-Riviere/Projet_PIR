@@ -41,8 +41,19 @@ class MyDronePIR(DroneAbstract):
         self.connect()
 
     def control(self):
+        if self.client_socket == None:
+            self.connect()
         x,y = self.gps_values()
-        m = [x,y]
+        m = "{} {} {} {} {} {} {} {};".format()(
+            x,
+            y,
+            self.measured_velocity()[0],
+            self.measured_velocity()[1],
+            self.measured_angular_velocity(),
+            self.compass_values(),
+            self.lidar_values(),
+            self.semantic_values()
+        )
         self.client_socket.sendall(m.encode())
         
         lidar_values = self.lidar_values()
@@ -145,8 +156,7 @@ class MyDronePIR(DroneAbstract):
         HOST = "localhost"
         PORT = 6666
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.client_socket:
-            self.client_socket.connect((HOST, PORT))
+            socket.setblocking(False)
             #client_socket.sendall(m.encode())
-            while not self.close_socket_com:
-                print(self.close_socket_com)
-                continue
+            self.client_socket.connect((HOST, PORT))
+            
