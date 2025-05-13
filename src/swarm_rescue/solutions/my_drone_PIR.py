@@ -11,9 +11,7 @@ import random
 import numpy as np
 
 import statistics
-
-def send_to_CF(x,y):
-    pass
+import socket
 
 class MyDronePIR(DroneAbstract):
 
@@ -25,6 +23,9 @@ class MyDronePIR(DroneAbstract):
     count = None
 
     state = "take root"
+
+    socket = input("socket :")
+
     def __init__(self,
                 identifier: Optional[int] = None,
                 misc_data: Optional[MiscData] = None,
@@ -36,9 +37,13 @@ class MyDronePIR(DroneAbstract):
         self.actuators_computer = ActuatorsComputer(identifier,self.lidar_rays_angles())
         self.sensors_analyzer = SensorsAnalyzer(identifier)
         self.sensors_analyzer.disable = False
+        self.close_socket_com = False
+        self.connect()
+
     def control(self):
         x,y = self.gps_values()
-        send_to_CF(x,y)
+        m = [x,y]
+        self.client_socket.sendall(m.encode())
         
         lidar_values = self.lidar_values()
         self.returning_last_center = False
@@ -129,7 +134,19 @@ class MyDronePIR(DroneAbstract):
                 self.state = "follow the gap"
                 print(self.state)
 
+        
         return command
     
     def define_message_for_all(self):
         return super().define_message_for_all()
+
+    def connect(self):
+        self.close_socket_com
+        HOST = "localhost"
+        PORT = 6666
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.client_socket:
+            self.client_socket.connect((HOST, PORT))
+            #client_socket.sendall(m.encode())
+            while not self.close_socket_com:
+                print(self.close_socket_com)
+                continue
