@@ -11,7 +11,7 @@ import sys
 import socket
 
 
-uris = ['radio://0/80/2M/7']
+uris = ['radio://0/80/2M/A6']
         #'radio://0/80/2M/9',
         #'radio://0/80/2M/A1']
 pos_dict = {}
@@ -41,8 +41,8 @@ def log_callback(uri, timestamp, data, logconf):
     pos = np.array([x, y, z])
     pos_dict[uri] = pos
     k += 1
-    if k%100 == 0:
-        print(x,y,z)
+    #if k%100 == 0:
+        #print(x,y,z)
     vx = data['stateEstimate.vx']
     vy = data['stateEstimate.vy']
     vz = data['stateEstimate.vz']
@@ -140,6 +140,9 @@ def fly_sequence(scf):
         global decollage
         decollage = False
         en_cours = True
+        scf.cf.param.set_value('posCtlPid.xVelMax', '1')
+        scf.cf.param.set_value('posCtlPid.yVelMax', '1')
+        scf.cf.param.set_value('posCtlPid.zVelMax', '1')
 
         v_0 = 0.35
     
@@ -182,8 +185,8 @@ def fly_sequence(scf):
                 print(f"Unpacked : x : {x},y : {y}")
                 break
             
-            x = x/300
-            y = y/300
+            x = x/600
+            y = y/600
             go_to(cf,x,y,scf)
             time.sleep(0.1)
         time.sleep(0.5)
@@ -220,6 +223,7 @@ if __name__ == '__main__':
         
         swarm.parallel_safe(print_check)
         print('Connected to  Crazyflies')
+        
 
         
         # print('Performing light check')

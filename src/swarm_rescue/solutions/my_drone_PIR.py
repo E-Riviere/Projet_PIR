@@ -14,7 +14,7 @@ import statistics
 import socket
 
 class MyDronePIR(DroneAbstract):
-    is_controlled = False
+    is_controlled = True
     sensors_analyzer = None
     actuators_computer = None
     goal_data_analyze = None
@@ -61,18 +61,16 @@ class MyDronePIR(DroneAbstract):
                     self.state = "take root"
         lidar_values = self.lidar_values()
         self.returning_last_center = False
-        if not self.is_controlled:
-            self.state = "take root"
         print("ça commence")
         if self.state == "take root":
             self.actuators_computer.take_root_control_command(self.gps_values(),(-200,0))
             print("take root")
+            print((x + 200)**2 + (y)**2 < 50)
             if (x + 200)**2 + (y)**2 < 50:
                 print("coucou")
                 self.state = "follow the gap"
                 print(self.state)
                 self.sensors_analyzer.disable = False
-            print(self.state)
         elif self.state == "follow the gap": 
             print(self.compass_values())
             print(self.sensors_analyzer.analyzed_data['positive gap number'])
@@ -150,11 +148,11 @@ class MyDronePIR(DroneAbstract):
                 "lateral" : 0.0,
                 "rotation" : 0.0
             }
-            if self.count > 20:
+            if self.count > 10:
                 self.state = "follow the gap"
                 print(self.state)
 
-        
+        print(self.state)
         return command
     
     def define_message_for_all(self):
