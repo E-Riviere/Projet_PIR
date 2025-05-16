@@ -149,7 +149,7 @@ class Launcher:
                        the_map=my_map,
                        draw_interactive=False,
                        filename_video_capture=filename_video_capture,
-                       use_keyboard=False)
+                       use_keyboard=True)
 
         window_title = (f"Team: {self.team_info.team_number_str}   -   "
                         f"Map: {type(my_map).__name__}   -   "

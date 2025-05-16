@@ -11,7 +11,7 @@ import sys
 import socket
 
 
-uris = ['radio://0/80/2M/A8']
+uris = ['radio://0/80/2M/A5']
         #'radio://0/80/2M/9',
         #'radio://0/80/2M/A1']
 pos_dict = {}
@@ -55,11 +55,11 @@ def go_to(cf, x, y,scf):
     x_cond = 0
     if pos_dict[cf.link_uri][0] < x:
         x_cond = 1
-    elif pos_dict[cf.link_uri][0] > x:
+    elif pos_dict[cf.link_uri][0] >= x:
         x_cond = -1
     if pos_dict[cf.link_uri][1] < y:
         y_cond = 1
-    elif pos_dict[cf.link_uri][1] > y:
+    elif pos_dict[cf.link_uri][1] >= y:
         y_cond = -1
     # TO TEST :
     # - Change vx, vy, vz (to see the impact (example 0.01))
@@ -77,6 +77,7 @@ def go_to(cf, x, y,scf):
     
     
     
+    
 
 
 def take_off(cf, height):
@@ -90,6 +91,8 @@ def take_off(cf, height):
         cf.commander.send_velocity_world_setpoint(0, 0, vz, 0)
         time.sleep(sleep_time)
 
+    cf.commander.send_velocity_world_setpoint(0, 0, 0, 0)
+    print("Takeoff finished")
 
 def land(cf, position):
     print('landing...')
@@ -139,30 +142,51 @@ def fly_sequence(scf):
         en_cours = True
 
         v_0 = 0.35
-        mes = socket_dict[uris[0]].sendall("Connected".encode())
+    
  
             
         float_size = np.float64().nbytes
 
         take_off(cf, 0.50)
-        mes = socket_dict[uris[0]].recv(1024).decode()
-        go_to(cf,0,0,scf)
-        time.sleep(0.5)
 
-        x =-1
-        print("crash")
-        while x < -0.210 or True:
+        #mes = socket_dict[uris[0]].recv(1024).decode()
+        time.sleep(2)
+        go_to(cf,1,0,scf)
+
+        mes = socket_dict[uris[0]].sendall("Connected".encode())
+        
+        x = 0
+        y = 0
+        mes = socket_dict[uris[0]].recv(1024).decode()
+        print(f"Just decoded : {mes}")
+        mes = mes.split(";")[0].split(" ") 
+        print(f"Splited : {mes}, len = {len(mes)}")
+        if len(mes) == 2:
+            x,y = mes
+        x = float(x)
+        y = float(y)
+        print(f"Unpacked : x : {x},y : {y}")
+        while True:
             mes = socket_dict[uris[0]].recv(1024).decode()
-            x,y = mes.split(";")[0].split(" ")
+            r = mes
+            
+            mes = mes.split(";")[0].split(" ") 
+            #print(f"Splited : {mes}, len = {len(mes)}")
+            if len(mes) == 2:
+                x,y = mes
             x = float(x)
             y = float(y)
-            print('Connecting to Crazyflies...')
-            print(x,y)
-            x = x/1000
-            y = y/1000
+            if x**2 + y**2 > 2000000:
+                print(f"Just decoded : {r}")
+                print(f"Splited : {mes}, len = {len(mes)}")
+                print(f"Unpacked : x : {x},y : {y}")
+                break
+            
+            x = x/300
+            y = y/300
             go_to(cf,x,y,scf)
             time.sleep(0.1)
-
+        time.sleep(0.5)
         land(cf, pos_dict[scf.cf.link_uri])
         time.sleep(1)
 
@@ -189,10 +213,9 @@ if __name__ == '__main__':
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         conn, addr = serversocket.accept()
         socket_dict[uris[i]] = conn
-        
 
-        
-        
+
+    print('Connecting to Crazyflies...')
     with Swarm(uris, factory=factory) as swarm:
         
         swarm.parallel_safe(print_check)

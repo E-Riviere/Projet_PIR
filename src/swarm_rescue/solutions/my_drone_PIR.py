@@ -21,7 +21,7 @@ class MyDronePIR(DroneAbstract):
     choosed_gap = None
     goal_compass = None
     count = None
-
+    count_send = 0
     state = "waiting connection"
     
     socket = int(input("socket :"))
@@ -43,14 +43,17 @@ class MyDronePIR(DroneAbstract):
         # print(self.client_socket)
 
     def control(self):
-        x,y = self.gps_values()
+        x,y = self.true_position()
+        print("coo",x,y)
         print("coucou", self.client_socket)
         if self.client_socket == None:
             self.connect()
             print("a",self.client_socket)
         else:
-            m = f"{str(x)} {str(y)};"
-            self.client_socket.sendall(m.encode())
+            self.count_send += 1
+            if self.count_send%10 == 0:
+                m = f"{str(x)} {str(y)};"
+                self.client_socket.sendall(m.encode())
         if self.state == "waiting connection":
             mes = self.client_socket.recv(1024).decode()
             if mes == "Connected":
