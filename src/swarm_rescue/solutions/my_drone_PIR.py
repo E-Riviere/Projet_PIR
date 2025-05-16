@@ -14,7 +14,7 @@ import statistics
 import socket
 
 class MyDronePIR(DroneAbstract):
-
+    is_controlled = False
     sensors_analyzer = None
     actuators_computer = None
     goal_data_analyze = None
@@ -23,8 +23,8 @@ class MyDronePIR(DroneAbstract):
     count = None
     count_send = 0
     state = "waiting connection"
-    
-    socket = int(input("socket :"))
+    if is_controlled:
+        socket = int(input("socket :"))
     client_socket = None
 
     def __init__(self,
@@ -38,36 +38,41 @@ class MyDronePIR(DroneAbstract):
         self.actuators_computer = ActuatorsComputer(identifier,self.lidar_rays_angles())
         self.sensors_analyzer = SensorsAnalyzer(identifier)
         self.sensors_analyzer.disable = False
-        self.close_socket_com = False
         # self.connect()
         # print(self.client_socket)
 
     def control(self):
         x,y = self.true_position()
         print("coo",x,y)
-        print("coucou", self.client_socket)
-        if self.client_socket == None:
-            self.connect()
-            print("a",self.client_socket)
-        else:
-            self.count_send += 1
-            if self.count_send%10 == 0:
-                m = f"{str(x)} {str(y)};"
-                self.client_socket.sendall(m.encode())
-        if self.state == "waiting connection":
-            mes = self.client_socket.recv(1024).decode()
-            if mes == "Connected":
-                print("Starting")
-                self.state = "take root"
+        if self.is_controlled:
+            print("coucou", self.client_socket)
+            if self.client_socket == None:
+                self.connect()
+                print("a",self.client_socket)
+            else:
+                self.count_send += 1
+                if self.count_send%10 == 0:
+                    m = f"{str(x)} {str(y)};"
+                    self.client_socket.sendall(m.encode())
+            if self.state == "waiting connection":
+                mes = self.client_socket.recv(1024).decode()
+                if mes == "Connected":
+                    print("Starting")
+                    self.state = "take root"
         lidar_values = self.lidar_values()
         self.returning_last_center = False
+        if not self.is_controlled:
+            self.state = "take root"
+        print("ça commence")
         if self.state == "take root":
             self.actuators_computer.take_root_control_command(self.gps_values(),(-200,0))
-        
+            print("take root")
             if (x + 200)**2 + (y)**2 < 50:
+                print("coucou")
                 self.state = "follow the gap"
                 print(self.state)
                 self.sensors_analyzer.disable = False
+            print(self.state)
         elif self.state == "follow the gap": 
             print(self.compass_values())
             print(self.sensors_analyzer.analyzed_data['positive gap number'])
@@ -136,6 +141,7 @@ class MyDronePIR(DroneAbstract):
         #     self.sensors_analyzer.disable = False
         self.sensors_analyzer.analyze(self.lidar_values(),self.lidar_rays_angles(),self.semantic_values())
         command = self.actuators_computer.command
+        print(command)
 
         if self.state == "enter the gap":
             self.count += 1
@@ -155,7 +161,6 @@ class MyDronePIR(DroneAbstract):
         return super().define_message_for_all()
 
     def connect(self):
-        self.close_socket_com
         HOST = "localhost"
         PORT = self.socket
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

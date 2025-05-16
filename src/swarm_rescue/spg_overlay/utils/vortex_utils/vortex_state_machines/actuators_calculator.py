@@ -54,7 +54,9 @@ class ActuatorsComputer():
 
 
     def take_root_control_command(self, gps_pose, root_pose):
-        eps = 10**(0)
+        eps = 10**(0)   
+        print("gps pose", gps_pose)
+        print("root pose", root_pose)
         if gps_pose[1] - root_pose[1] > eps:
             self.command["forward"] = 0.0
             self.command["lateral"] = -0.1
