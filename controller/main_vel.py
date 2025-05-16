@@ -2,6 +2,7 @@ import time
 from cflib.crazyflie.swarm import CachedCfFactory
 from cflib.crazyflie.swarm import Swarm
 from cflib.crazyflie.log import LogConfig
+from cflib.positioning.position_hl_commander import PositionHlCommander
 import cflib
 import numpy as np
 import multiprocessing
@@ -41,8 +42,9 @@ def log_callback(uri, timestamp, data, logconf):
     pos = np.array([x, y, z])
     pos_dict[uri] = pos
     k += 1
-    #if k%100 == 0:
-        #print(x,y,z)
+    print(x,y,z)
+    if k%100 == 0:
+        print(x,y,z)
     vx = data['stateEstimate.vx']
     vy = data['stateEstimate.vy']
     vz = data['stateEstimate.vz']
@@ -66,14 +68,38 @@ def go_to(cf, x, y,scf):
     # - send_position_setpoint
     # - if don't work send_full_state_setpoint orientation (quaternions)
     # 
-    cf.commander.send_full_state_setpoint([x,y,0.5],[0.5,0.5,0.5],[0,0,0],[0,0,0,1],0,0,0)
+    z = 0.5
+    if abs(pos_dict[cf.link_uri][0] - x) < 0.1:
+        vx = 0
+    if abs(pos_dict[cf.link_uri][1] - y) < 0.1:
+        vy = 0
+    vx = x_cond * 0.1 
+    vy = y_cond * 0.1
+    cf.commander.send_velocity_world_setpoint(vx,vy,0,0)
+    print(x_cond*pos_dict[cf.link_uri][0], y_cond*pos_dict[cf.link_uri][1])
+    print(x_cond*x, y_cond*y)
+    print(vx,vy)
+    
+    sig = pos_dict[cf.link_uri][0]**2 - x**2 > 0
+    sig2 = pos_dict[cf.link_uri][1]**2 - y**2 > 0
     while x_cond*pos_dict[cf.link_uri][0] < x_cond*x or y_cond*pos_dict[cf.link_uri][1] < y_cond*y:
-        cf.commander.send_full_state_setpoint([x,y,0.5],[0.5,0.5,0.5],[0,0,0],[0,0,0,1],0,0,0)
+        # print("loop")
+        # print(pos_dict[cf.link_uri][0]**2 - x**2)
+        # print(pos_dict[cf.link_uri][1]**2 - y**2)
+        sig = pos_dict[cf.link_uri][0]**2 - x**2 > 0
+        sig2 = pos_dict[cf.link_uri][1]**2 - y**2 > 0
+        if pos_dict[cf.link_uri][0]**2 - x**2 < 0 == sig:
+            vx = -vx
+        if pos_dict[cf.link_uri][1]**2 - y**2 < 0 == sig2:
+            vy = -vy
+        cf.commander.send_velocity_world_setpoint(vx,vy,0,0)
+        
         time.sleep(0.05)
 
     # else:
     #     print(x_cond,y_cond,pos_dict[cf.link_uri][0])
     cf.commander.send_velocity_world_setpoint(0, 0, 0, 0)
+    print("end of go_to")
     
     
     
@@ -82,15 +108,16 @@ def go_to(cf, x, y,scf):
 
 def take_off(cf, height):
     #print(swarm.get_estimated_positions())
-    
     take_off_time = 2.0
     sleep_time = 0.1
     steps = int(take_off_time / sleep_time)
+    print(steps)
     vz = height / take_off_time
+    print(vz)
     for i in range(steps):
         cf.commander.send_velocity_world_setpoint(0, 0, vz, 0)
         time.sleep(sleep_time)
-
+    time.sleep(0.5)
     cf.commander.send_velocity_world_setpoint(0, 0, 0, 0)
     print("Takeoff finished")
 
@@ -135,6 +162,7 @@ def print_check(scf):
 
 def fly_sequence(scf):
     try:
+        connected = True
         cf = scf.cf
         global en_cours
         global decollage
@@ -151,44 +179,46 @@ def fly_sequence(scf):
         float_size = np.float64().nbytes
 
         take_off(cf, 0.50)
-
-        #mes = socket_dict[uris[0]].recv(1024).decode()
         time.sleep(2)
-        go_to(cf,1,0,scf)
-
-        mes = socket_dict[uris[0]].sendall("Connected".encode())
+        #mes = socket_dict[uris[0]].recv(1024).decode()
         
-        x = 0
-        y = 0
-        mes = socket_dict[uris[0]].recv(1024).decode()
-        print(f"Just decoded : {mes}")
-        mes = mes.split(";")[0].split(" ") 
-        print(f"Splited : {mes}, len = {len(mes)}")
-        if len(mes) == 2:
-            x,y = mes
-        x = float(x)
-        y = float(y)
-        print(f"Unpacked : x : {x},y : {y}")
-        while True:
+        go_to(cf,0,0,scf)
+        
+        if connected:
+            print("reception")
+            mes = socket_dict[uris[0]].sendall("Connected".encode())
+        
+            x = 0
+            y = 0
             mes = socket_dict[uris[0]].recv(1024).decode()
-            r = mes
-            
+            print(f"Just decoded : {mes}")
             mes = mes.split(";")[0].split(" ") 
-            #print(f"Splited : {mes}, len = {len(mes)}")
+            print(f"Splited : {mes}, len = {len(mes)}")
             if len(mes) == 2:
                 x,y = mes
             x = float(x)
             y = float(y)
-            if x**2 + y**2 > 2000000:
-                print(f"Just decoded : {r}")
-                print(f"Splited : {mes}, len = {len(mes)}")
-                print(f"Unpacked : x : {x},y : {y}")
-                break
-            
-            x = x/600
-            y = y/600
-            go_to(cf,x,y,scf)
-            time.sleep(0.1)
+            print(f"Unpacked : x : {x},y : {y}")
+            while True:
+                mes = socket_dict[uris[0]].recv(1024).decode()
+                r = mes
+                
+                mes = mes.split(";")[0].split(" ") 
+                #print(f"Splited : {mes}, len = {len(mes)}")
+                if len(mes) == 2:
+                    x,y = mes
+                x = float(x)
+                y = float(y)
+                if x**2 + y**2 > 2000000:
+                    print(f"Just decoded : {r}")
+                    print(f"Splited : {mes}, len = {len(mes)}")
+                    print(f"Unpacked : x : {x},y : {y}")
+                    break
+                
+                x = x/600
+                y = y/600
+                go_to(cf,x,y,scf)
+                time.sleep(1)
         time.sleep(0.5)
         land(cf, pos_dict[scf.cf.link_uri])
         time.sleep(1)
@@ -199,6 +229,7 @@ def fly_sequence(scf):
         print(e)
 
 if __name__ == '__main__':
+    connected = True
     while True:
         try:
             nb_drone_sim = int(input("Combien de drone dans le simulateur : "))
@@ -209,13 +240,14 @@ if __name__ == '__main__':
     cflib.crtp.init_drivers()
     factory = CachedCfFactory(rw_cache='./cache')
 
-    serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    serversocket.bind(("localhost", 3080))
-    serversocket.listen(5)
-    for i in range(nb_drone_sim if nb_drone_sim > len(uris) else len(uris)):
-        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        conn, addr = serversocket.accept()
-        socket_dict[uris[i]] = conn
+    if connected:
+        serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        serversocket.bind(("localhost", 3080))
+        serversocket.listen(5)
+        for i in range(nb_drone_sim if nb_drone_sim > len(uris) else len(uris)):
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            conn, addr = serversocket.accept()
+            socket_dict[uris[i]] = conn
 
 
     print('Connecting to Crazyflies...')

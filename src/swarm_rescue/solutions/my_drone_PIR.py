@@ -51,7 +51,7 @@ class MyDronePIR(DroneAbstract):
                 print("a",self.client_socket)
             else:
                 self.count_send += 1
-                if self.count_send%10 == 0:
+                if self.count_send%20 == 0:
                     m = f"{str(x)} {str(y)};"
                     self.client_socket.sendall(m.encode())
             if self.state == "waiting connection":
