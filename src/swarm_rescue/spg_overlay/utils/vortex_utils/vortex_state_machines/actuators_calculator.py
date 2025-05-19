@@ -129,6 +129,10 @@ class ActuatorsComputer():
 
         elif direction < -0.05:
             self.command["rotation"] = - 0.2
+        
+        else:
+            self.command["rotation"] = 0.0
+            
 
     
     def follower_control_command(self, drone_dist, pid, ray):

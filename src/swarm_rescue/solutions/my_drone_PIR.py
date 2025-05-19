@@ -71,6 +71,8 @@ class MyDronePIR(DroneAbstract):
                 self.state = "follow the gap"
                 print(self.state)
                 self.sensors_analyzer.disable = False
+        
+        
         elif self.state == "follow the gap": 
             print(self.compass_values())
             print(self.sensors_analyzer.analyzed_data['positive gap number'])
