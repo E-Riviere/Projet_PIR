@@ -45,10 +45,14 @@ class MyDroneDisablers(DroneAbstract):
         """
         We only send a command to do nothing
         """
-        command = {"forward": 0.0,
+        command = {"forward": 1.0,
                    "lateral": 0.0,
                    "rotation": 0.0,
                    "grasper": 0}
+        print("yo")
+        for _, msg in self.communicators.received_messages:
+            print("coucou")
+            print(msg)
         return command
 
 
@@ -131,7 +135,7 @@ def main():
     gui = GuiSR(playground=my_playground,
                 the_map=my_map,
                 print_messages=True,
-                use_keyboard=True,
+                use_keyboard=False,
                 enable_visu_noises=True,
                 filename_video_capture=filename_video_capture
                 )

@@ -384,7 +384,7 @@ class SensorsAnalyzer():
             if data.entity_type == DroneSemanticSensor.TypeEntity.DRONE:
                 drone_angle_ray.append(data.angle)
                 drone_dist_ray.append(data.distance)
-                drone_id_ray.append(data.identifier)
+                drone_id_ray.append(i)
                 drone_index_ray.append(FromAngleToRay(data.angle, semantic_angles))
 
         drone_detection = {str(id):[[],[],[],[],[],[],[]] for id in drone_id_ray}

@@ -9,7 +9,7 @@ import numpy as np
 import socket
 
 
-uris = ['radio://0/80/2M/7']
+uris = ['radio://0/80/2M/A4']
         #'radio://0/80/2M/9',
         #'radio://0/80/2M/A1']
 pos_dict = {}
