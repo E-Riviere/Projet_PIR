@@ -9,12 +9,13 @@ import numpy as np
 import socket
 
 
-uris = ['radio://0/80/2M/A4']
+uris = ['radio://0/80/2M/A8']
         #'radio://0/80/2M/9',
         #'radio://0/80/2M/A1']
 pos_dict = {}
 vel_dict = {}
 socket_dict = {}
+file_dict = {}
 global k
 k = 0
 def start_states_log(scf):
@@ -39,9 +40,7 @@ def log_callback(uri, timestamp, data, logconf):
     pos = np.array([x, y, z])
     pos_dict[uri] = pos
     k += 1
-    print(x,y,z)
-    if k%100 == 0:
-        print(x,y,z)
+    
     vx = data['stateEstimate.vx']
     vy = data['stateEstimate.vy']
     vz = data['stateEstimate.vz']
@@ -87,7 +86,7 @@ def fly_sequence(scf):
     scf.cf.param.set_value('posCtlPid.zVelMax', '1')
 
     v_0 = 0.35
-
+    file_dict[scf.cf.link_uri] = open(scf.cf.link_uri.split("/")[-1],"w")
     drone = HighLevelCommander(cf)
         
     float_size = np.float64().nbytes

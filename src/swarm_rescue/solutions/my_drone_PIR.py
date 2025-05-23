@@ -1,3 +1,4 @@
+import time
 from spg_overlay.utils.vortex_utils.Potential_field import PotentialField 
 from spg_overlay.entities.drone_abstract import DroneAbstract
 from spg_overlay.utils.vortex_utils.vortex_state_machines.sensors_analyzer import SensorsAnalyzer
@@ -14,7 +15,7 @@ import statistics
 import socket
 
 class MyDronePIR(DroneAbstract):
-    is_controlled = False
+    is_controlled = True
     sensors_analyzer = None
     actuators_computer = None
     goal_data_analyze = None
@@ -38,8 +39,8 @@ class MyDronePIR(DroneAbstract):
         self.actuators_computer = ActuatorsComputer(identifier,self.lidar_rays_angles())
         self.sensors_analyzer = SensorsAnalyzer(identifier)
         self.sensors_analyzer.disable = False
-        # self.connect()
-        # print(self.client_socket)
+        self.file = open("TRANSCRIPTION_LIVE",  'w')
+        self.connect()
 
     def control(self):
         x,y = self.true_position()
@@ -49,22 +50,25 @@ class MyDronePIR(DroneAbstract):
                     "lateral" : 0.0,
                     "rotation" : 0.0
                 }
-        if self.identifier == 0:
-            if self.is_controlled:
-                print("coucou", self.client_socket)
-                if self.client_socket == None:
-                    self.connect()
-                    print("a",self.client_socket)
-                else:
-                    self.count_send += 1
-                    if self.count_send%20 == 0:
-                        m = f"{str(x)} {str(y)};"
-                        self.client_socket.sendall(m.encode())
-                if self.state == "waiting connection":
-                    mes = self.client_socket.recv(1024).decode()
-                    if mes == "Connected":
-                        print("Starting")
-                        self.state = "take root"
+        if (self.measured_gps_position() is not None) and (self.measured_compass_angle() is not None):
+            self.file.write(f"{int(time.time()*1000)};{self.measured_gps_position()[0]};{self.measured_gps_position()[1]};{self.measured_compass_angle()}\n")
+            print("DATA UPLOADED")
+
+        if self.is_controlled:
+            print("coucou", self.client_socket)
+            if self.client_socket == None:
+                self.connect()
+                print("a",self.client_socket)
+            else:
+                self.count_send += 1
+                if self.count_send%20 == 0:
+                    m = f"{str(x)} {str(y)};"
+                    self.client_socket.sendall(m.encode())
+            if self.state == "waiting connection":
+                mes = self.client_socket.recv(1024).decode()
+                if mes == "Connected":
+                    print("Starting")
+                    self.state = "take root"
             lidar_values = self.lidar_values()
             self.returning_last_center = False
             print("ça commence")
