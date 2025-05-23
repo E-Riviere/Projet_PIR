@@ -74,6 +74,47 @@ def light_check(scf):
 def print_check(scf):
     print(f"Connected to {scf.cf.link_uri}")
 
+def angle_to_quaternion(yaw_rad):
+    """Convertit un angle yaw en quaternion [x,y,z,w]"""
+    return [0.0, 0.0, np.sin(yaw_rad), np.cos(yaw_rad)]
+
+def go_to1(cf, yaw_radians, scf):
+    """Fait tourner le drone à l'angle yaw_radians sans se déplacer"""
+    print(f"Orientation à {yaw_radians}°")
+    
+    quaternion = angle_to_quaternion(yaw_radians)
+    
+    current_pos = pos_dict[cf.link_uri]
+    
+    # Durée de la rotation (2 secondes)
+    start_time = time.time()
+    while time.time() - start_time < 2.0:
+        cf.commander.send_full_state_setpoint(
+            [current_pos[0], current_pos[1], current_pos[2]],  # Position actuelle
+            [0, 0, 0],      # Vitesse nulle
+            [0, 0, 0],      # Accélération nulle
+            quaternion,     # Nouvelle orientation
+            0, 0, 0         # Vitesse angulaire nulle
+        )
+        time.sleep(0.05)
+    
+    # Stabilisation finale
+    cf.commander.send_velocity_world_setpoint(0, 0, 0, 0)
+
+def pixel_to_meter(points_pixel):
+    # Plage du simulateur (pixels)
+    pixel_bounds = np.array([[-400, 400], [-300, 300]])  # [x_min, x_max], [y_min, y_max]
+    
+    # Plage du monde réel (mètres)
+    meter_bounds = np.array([[0, 1.5], [0.5, -0.5]])  # [x_min, x_max], [y_min, y_max]
+    
+    # Normalisation et mise à l'échelle
+    scale = (meter_bounds[:, 1] - meter_bounds[:, 0]) / (pixel_bounds[:, 1] - pixel_bounds[:, 0]) #facteur de conversion
+    offset = [-1,0] #coordonnées de l'origine
+    
+
+    return points_pixel * scale + offset
+
 def fly_sequence(scf):
     connected = True
     cf = scf.cf
@@ -91,11 +132,11 @@ def fly_sequence(scf):
         
     float_size = np.float64().nbytes
 
-    drone.takeoff(1,1)
+    drone.takeoff(0.5,1)
     time.sleep(2)
     #mes = socket_dict[uris[0]].recv(1024).decode()
     
-    drone.go_to(0,0,1,0,1)
+    drone.go_to(-1,0,0.5,0,1)
     time.sleep(1)
     if connected:
         print("reception")
@@ -107,31 +148,34 @@ def fly_sequence(scf):
         print(f"Just decoded : {mes}")
         mes = mes.split(";")[0].split(" ") 
         print(f"Splited : {mes}, len = {len(mes)}")
-        if len(mes) == 2:
-            x,y = mes
+        if len(mes) == 3:
+            x,y,yaw = mes
         x = float(x)
         y = float(y)
-        print(f"Unpacked : x : {x},y : {y}")
+        yaw = float(yaw)
+        print(f"Unpacked : x : {x},y : {y},yaw : {yaw}")
         while True:
             mes = socket_dict[uris[0]].recv(1024).decode()
             r = mes
             
             mes = mes.split(";")[0].split(" ") 
             #print(f"Splited : {mes}, len = {len(mes)}")
-            if len(mes) == 2:
-                x,y = mes
+            if len(mes) == 3:
+                x,y,yaw = mes
             x = float(x)
             y = float(y)
+            yaw = float(yaw)
             if x**2 + y**2 > 2000000:
                 print(f"Just decoded : {r}")
                 print(f"Splited : {mes}, len = {len(mes)}")
-                print(f"Unpacked : x : {x},y : {y}")
+                print(f"Unpacked : x : {x},y : {y},yaw : {yaw}")
                 break
             
-            x = x/300+0.5
-            y = y/300
-            drone.go_to(x,y,0.5,0,1)
-            time.sleep(1)
+            #point_meter = pixel_to_meter((x,y))
+            x, y = x/400, y/300
+            print(x,y,yaw)
+            drone.go_to(x,y,0.5,yaw,0.5)
+            time.sleep(0.7)
     time.sleep(0.5)
     drone.land(0,1)
     time.sleep(1)
