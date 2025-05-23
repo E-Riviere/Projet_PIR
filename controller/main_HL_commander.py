@@ -5,7 +5,7 @@ from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.high_level_commander import HighLevelCommander
 import cflib
 import numpy as np
-
+import keyboard
 import socket
 
 
@@ -15,6 +15,7 @@ uris = ['radio://0/80/2M/A5']
 pos_dict = {}
 vel_dict = {}
 socket_dict = {}
+file_dict = {}
 global k
 k = 0
 def start_states_log(scf):
@@ -39,7 +40,6 @@ def log_callback(uri, timestamp, data, logconf):
     pos = np.array([x, y, z])
     pos_dict[uri] = pos
     k += 1
-    print(x,y,z)
     if k%100 == 0:
         print(x,y,z)
     vx = data['stateEstimate.vx']
@@ -47,6 +47,7 @@ def log_callback(uri, timestamp, data, logconf):
     vz = data['stateEstimate.vz']
     vel = np.array([vx, vy, vz])
     vel_dict[uri] = vel
+    file_dict[uri].write(f"{int(time.time()*1000)};{x};{y};{z};{vx};{vy};{vz}\n")
     
     
 
@@ -117,6 +118,8 @@ def pixel_to_meter(points_pixel):
     return points_pixel * scale + offset
 
 def fly_sequence(scf):
+    file_dict[scf.cf.link_uri] = open(scf.cf.link_uri.split("/")[-1],"w")
+
     connected = True
     cf = scf.cf
     global en_cours
@@ -155,7 +158,7 @@ def fly_sequence(scf):
         y = float(y)
         yaw = float(yaw)
         print(f"Unpacked : x : {x},y : {y},yaw : {yaw}")
-        while True:
+        while keyboard.is_pressed('q') == False:
             mes = socket_dict[uris[0]].recv(1024).decode()
             r = mes
             
@@ -195,7 +198,7 @@ if __name__ == '__main__':
 
     if connected:
         serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        serversocket.bind(("localhost", 3080))
+        serversocket.bind(("192.168.194.211", 3080))
         serversocket.listen(5)
         for i in range(nb_drone_sim if nb_drone_sim > len(uris) else len(uris)):
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

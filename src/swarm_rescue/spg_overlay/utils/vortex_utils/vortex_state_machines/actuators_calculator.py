@@ -54,9 +54,8 @@ class ActuatorsComputer():
 
 
     def take_root_control_command(self, gps_pose, root_pose):
-        eps = 10**(0)   
-        print("gps pose", gps_pose)
-        print("root pose", root_pose)
+        eps = 10**(0)
+        print(eps)
         if gps_pose[1] - root_pose[1] > eps:
             self.command["forward"] = 0.0
             self.command["lateral"] = -0.1
@@ -75,7 +74,11 @@ class ActuatorsComputer():
         elif gps_pose[0] - root_pose[0] > eps:
             self.command["forward"] = -0.1
             self.command["lateral"] = 0.0
-            self.command["rotation"] = 0.0         
+            self.command["rotation"] = 0.0   
+
+        else:
+            return "reached root" 
+        return "not reached root"     
 
 
     def FollowTheGap(self, gap_analysis, gap_sel):
@@ -90,8 +93,16 @@ class ActuatorsComputer():
             self.command["rotation"] = -(abs(gap_analysis[gap_sel])/math.pi)
             self.command["lateral"] = -0.1
 
-        else:
-            pass
+        elif len(gap_analysis) > 2:
+            return "not in gap"
+        
+        elif len(gap_analysis) == 2:
+            return "in gap"
+        
+        elif len(gap_analysis) == 1:
+            return "in deadend"
+        
+        return "IDK"
 
 
 
@@ -115,6 +126,8 @@ class ActuatorsComputer():
             self.command["forward"] = 0.0
             self.command["lateral"] = 0.0
             self.command["rotation"] = 0.0
+            return "centered"
+        return "not centered"
 
 
     def AlignWithTheGap(self, gap_analysis, gap_selected):
@@ -132,34 +145,5 @@ class ActuatorsComputer():
         
         else:
             self.command["rotation"] = 0.0
-            
-
-    
-    def follower_control_command(self, drone_dist, pid, ray):
-        self.command["forward"] = 0.0
-        self.command["lateral"] = 0.0
-        self.command["rotation"] = 0.0
-
-        if pid==1:
-            self.command["forward"] = self.follower_pid_1(drone_dist)
-            self.command["lateral"] = 0.0
-            self.command["rotation"] = 0.0
-
-        elif pid==2:
-            self.command["forward"] = -self.follower_pid_2(drone_dist)
-            self.command["lateral"] = 0.0
-            self.command["rotation"] = 0.0
- 
-
-                
-
-    
-    
-
-        
-
-
-
-
-    
-
+            return "aligned"
+        return "not aligned"

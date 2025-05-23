@@ -25,7 +25,7 @@ class My7Map(MapAbstract):
 
         #POSITIONS OF THE DRONES
         # A fine tuner en fonction du nombre de drone et de la map
-        self._number_drones = 2
+        self._number_drones = 1
         # They are positioned in a square whose side size depends on the total number of drones.
         start_pose_drone = (-300, 0.0)
         nb_per_row = math.floor(math.sqrt(float(self._number_drones)))
