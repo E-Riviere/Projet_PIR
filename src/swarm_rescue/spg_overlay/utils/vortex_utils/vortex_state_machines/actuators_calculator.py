@@ -86,23 +86,15 @@ class ActuatorsComputer():
         self.command["forward"] = 0.2
 
         if gap_analysis[gap_sel] > 0:
-            self.command["rotation"] = (abs(gap_analysis[gap_sel])/math.pi) 
+            self.command["rotation"] = abs(gap_analysis[gap_sel])/math.pi
             self.command["lateral"] = 0.1
 
         if gap_analysis[gap_sel] < 0:
-            self.command["rotation"] = -(abs(gap_analysis[gap_sel])/math.pi)
+            self.command["rotation"] = -abs(gap_analysis[gap_sel])/math.pi
             self.command["lateral"] = -0.1
 
-        elif len(gap_analysis) > 2:
-            return "not in gap"
-        
-        elif len(gap_analysis) == 2:
-            return "in gap"
-        
-        elif len(gap_analysis) == 1:
-            return "in deadend"
-        
-        return "IDK"
+        else:
+            pass
 
 
 
@@ -126,8 +118,8 @@ class ActuatorsComputer():
             self.command["forward"] = 0.0
             self.command["lateral"] = 0.0
             self.command["rotation"] = 0.0
-            return "centered"
-        return "not centered"
+            return True
+        return False
 
 
     def AlignWithTheGap(self, gap_analysis, gap_selected):
@@ -145,5 +137,5 @@ class ActuatorsComputer():
         
         else:
             self.command["rotation"] = 0.0
-            return "aligned"
-        return "not aligned"
+            return True
+        return False
