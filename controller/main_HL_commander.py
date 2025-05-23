@@ -9,7 +9,7 @@ import keyboard
 import socket
 
 
-uris = ['radio://0/80/2M/A5']
+uris = ['radio://0/80/2M/A8']
         #'radio://0/80/2M/9',
         #'radio://0/80/2M/A1']
 pos_dict = {}
@@ -131,7 +131,7 @@ def fly_sequence(scf):
     scf.cf.param.set_value('posCtlPid.zVelMax', '1')
 
     v_0 = 0.35
-
+    file_dict[scf.cf.link_uri] = open(scf.cf.link_uri.split("/")[-1],"w")
     drone = HighLevelCommander(cf)
         
     float_size = np.float64().nbytes
